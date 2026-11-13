@@ -97,7 +97,7 @@ jobs:
               updatedAt: new Date().toISOString(),
               source: "Microsoft 365 Cloud Status + @MSFT365Status (RSS Bridges)",
               count: allItems.length,
-              items: allItems.slice(0, 15)
+              items: allItems
             };
 
             fs.writeFileSync("status.json", JSON.stringify(payload, null, 2));
