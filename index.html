@@ -347,7 +347,35 @@
 
   <script>
     // =========================================================================
-    // 1. KEYWORD MAPPING TUNED FOR MICROSOFT CLOUD STATUS & @MSFT365Status REPLIES
+    // 1. HTML SANITIZER & ENTITY DECODER (FIXES <div><br></div> TAGS IN FEED)
+    // =========================================================================
+    function stripHtml(raw) {
+      if (!raw) return "";
+      const decoder = document.createElement("textarea");
+      decoder.innerHTML = raw;
+      const decoded = decoder.value;
+      return decoded
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/div>/gi, "\n")
+        .replace(/<\/p>/gi, "\n")
+        .replace(/<[^>]*>?/gm, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/[ \t]+/g, " ")
+        .replace(/\n\s*\n+/g, "\n")
+        .trim();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    // =========================================================================
+    // 2. KEYWORD MAPPING TUNED FOR MICROSOFT CLOUD STATUS & @MSFT365Status REPLIES
     // =========================================================================
     const SERVICE_KEYWORDS = {
       exchange: [
@@ -390,7 +418,7 @@
     ];
 
     // =========================================================================
-    // 2. BASELINE DATASET (9 Workloads including 2 Copilot Services)
+    // 3. BASELINE DATASET (9 Workloads including 2 Copilot Services)
     // =========================================================================
     const DEFAULT_SERVICES = [
       {
@@ -546,10 +574,10 @@
     ];
 
     // =========================================================================
-    // 3. STATE MANAGEMENT & PERSISTENCE (v6 Reply-Aware Schema)
+    // 4. STATE MANAGEMENT & PERSISTENCE (v7 Clean-HTML Schema)
     // =========================================================================
-    let services = JSON.parse(localStorage.getItem("msmonitor_services_v6")) || structuredClone(DEFAULT_SERVICES);
-    let adminNotes = JSON.parse(localStorage.getItem("msmonitor_notes_v6")) || [];
+    let services = JSON.parse(localStorage.getItem("msmonitor_services_v7")) || structuredClone(DEFAULT_SERVICES);
+    let adminNotes = JSON.parse(localStorage.getItem("msmonitor_notes_v7")) || [];
     let liveFeedItems = [];
     let currentFilter = "all";
     let currentAdvisoryTemplate = "teams";
@@ -573,7 +601,7 @@
     ];
 
     // =========================================================================
-    // 4. SECTION-AWARE KEYWORD SCANNER FOR MULTI-SERVICE BULLETINS & REPLIES
+    // 5. SECTION-AWARE KEYWORD SCANNER FOR MULTI-SERVICE BULLETINS & REPLIES
     // =========================================================================
     function classifySeverity(text) {
       const lower = text.toLowerCase();
@@ -596,7 +624,7 @@
 
     function extractServiceSection(description, keywords) {
       if (!description) return null;
-      const cleanDesc = description.replace(/&nbsp;/g, " ").replace(/\s+/g, " ");
+      const cleanDesc = stripHtml(description).replace(/\n+/g, " ");
       const sections = cleanDesc.split(/\s+-\s+/);
       for (const sec of sections) {
         const lowerSec = sec.toLowerCase().trim();
@@ -608,8 +636,8 @@
     }
 
     function detectIsReply(item) {
-      const title = (item.title || "").trim();
-      const desc = (item.description || "").trim();
+      const title = stripHtml(item.title || "").trim();
+      const desc = stripHtml(item.description || "").trim();
       const source = (item.source || "").toLowerCase();
       return (
         source.includes("reply") ||
@@ -628,8 +656,8 @@
       const detectedUpdates = {};
 
       chronologicalItems.forEach(item => {
-        const title = item.title || "";
-        const desc = (item.description || "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+        const title = stripHtml(item.title || "");
+        const desc = stripHtml(item.description || "");
         const combinedText = `${title} ${desc}`.trim();
         const lowerText = combinedText.toLowerCase();
 
@@ -697,7 +725,7 @@
     }
 
     // =========================================================================
-    // 5. LIVE DATA SYNCHRONIZATION ENGINE (status.json -> RSS -> Baseline)
+    // 6. LIVE DATA SYNCHRONIZATION ENGINE (status.json -> RSS -> Baseline)
     // =========================================================================
     function formatTimeNow() {
       return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -742,11 +770,13 @@
     }
 
     function formatFeedBulletText(rawText) {
-      if (!rawText) return "";
-      const cleaned = rawText.replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+      const cleaned = stripHtml(rawText);
+      if (!cleaned) return "";
       return cleaned
-        .replace(/\s+-\s+([A-Z])/g, "\n• $1")
-        .replace(/\s+(Current Status:|Scope of impact:|Next update by:)/g, "\n\n$1");
+        .replace(/(?:^|\n|\s+)-\s+([A-Z])/g, "\n• $1")
+        .replace(/\n?(Current Status:|Scope of impact:|Next update by:)/g, "\n\n$1")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
     }
 
     async function syncLiveData(isManual = false) {
@@ -772,13 +802,15 @@
           if (data && Array.isArray(data.items)) {
             fetchedItems = data.items.map((item, idx) => {
               const isReply = detectIsReply(item);
+              const cleanTitle = stripHtml(item.title || "");
+              const cleanDesc = stripHtml(item.description || "");
               return {
                 id: `live-json-${idx}`,
                 author: isReply ? "@MSFT365Status" : (item.source || "Microsoft 365 Cloud Status"),
-                handle: isReply ? "Official Reply on X (@MSFT365Status)" : (item.title || "Official Status Advisory"),
+                handle: isReply ? "Official Reply on X (@MSFT365Status)" : (cleanTitle || "Official Status Advisory"),
                 time: item.pubDate || data.updatedAt || "Live Sync",
-                title: item.title || "",
-                description: item.description || "",
+                title: cleanTitle,
+                description: cleanDesc,
                 text: formatFeedBulletText(item.description || item.title || "Status update received."),
                 link: item.link || (isReply ? "https://x.com/MSFT365Status/with_replies" : "https://status.cloud.microsoft"),
                 isLive: true,
@@ -802,16 +834,17 @@
             const data = await res.json();
             if (data.status === "ok" && Array.isArray(data.items) && data.items.length > 0) {
               fetchedItems = data.items.slice(0, 10).map((item, idx) => {
-                const cleanText = (item.description || "").replace(/<[^>]*>?/gm, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
-                const isReply = detectIsReply({ title: item.title, description: cleanText, source: bridge.name });
+                const cleanTitle = stripHtml(item.title || "");
+                const cleanDesc = stripHtml(item.description || "");
+                const isReply = detectIsReply({ title: cleanTitle, description: cleanDesc, source: bridge.name });
                 return {
                   id: `live-rss-${idx}`,
                   author: isReply ? "@MSFT365Status" : bridge.name,
-                  handle: isReply ? "Official Reply on X (@MSFT365Status)" : (item.title || "Live RSS Update"),
+                  handle: isReply ? "Official Reply on X (@MSFT365Status)" : (cleanTitle || "Live RSS Update"),
                   time: item.pubDate || "Recent",
-                  title: item.title || "",
-                  description: cleanText,
-                  text: formatFeedBulletText(cleanText || item.title),
+                  title: cleanTitle,
+                  description: cleanDesc,
+                  text: formatFeedBulletText(item.description || item.title),
                   link: item.link || "https://x.com/MSFT365Status/with_replies",
                   isLive: true,
                   isReply
@@ -892,10 +925,10 @@
     }
 
     // =========================================================================
-    // 6. UI RENDERING (BANNER, 3x3 SERVICE CARDS, TIMELINE WITH REPLY BADGES)
+    // 7. UI RENDERING (BANNER, 3x3 SERVICE CARDS, TIMELINE WITH REPLY BADGES)
     // =========================================================================
     function saveServices() {
-      localStorage.setItem("msmonitor_services_v6", JSON.stringify(services));
+      localStorage.setItem("msmonitor_services_v7", JSON.stringify(services));
     }
 
     function cycleServiceStatus(serviceId) {
@@ -919,8 +952,8 @@
     }
 
     function resetSimulation() {
-      localStorage.removeItem("msmonitor_services_v6");
-      localStorage.removeItem("msmonitor_notes_v6");
+      localStorage.removeItem("msmonitor_services_v7");
+      localStorage.removeItem("msmonitor_notes_v7");
       services = structuredClone(DEFAULT_SERVICES);
       adminNotes = [];
       const badge = document.getElementById("keyword-match-badge");
@@ -1033,8 +1066,8 @@
             <div>
               <div class="flex items-start justify-between gap-2">
                 <div>
-                  <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100">${svc.name}</h4>
-                  <span class="text-xs text-slate-500 dark:text-slate-400">${svc.category}</span>
+                  <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100">${escapeHtml(svc.name)}</h4>
+                  <span class="text-xs text-slate-500 dark:text-slate-400">${escapeHtml(svc.category)}</span>
                 </div>
                 <button
                   onclick="cycleServiceStatus('${svc.id}')"
@@ -1046,13 +1079,13 @@
                 </button>
               </div>
               <p class="text-xs text-slate-600 dark:text-slate-300 mt-3 leading-relaxed line-clamp-3">
-                ${svc.summary}
+                ${escapeHtml(stripHtml(svc.summary))}
               </p>
             </div>
 
             <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
               <div class="flex items-center gap-1.5">
-                <span class="font-mono text-slate-500 dark:text-slate-400">${svc.incidentId}</span>
+                <span class="font-mono text-slate-500 dark:text-slate-400">${escapeHtml(svc.incidentId)}</span>
                 ${svc.autoSynced ? `<span class="px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-600 dark:text-sky-300 font-semibold text-[10px]">AUTO-SYNCED</span>` : ""}
                 ${svc.manualOverride ? `<span class="px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-300 font-semibold text-[10px]">SIMULATED</span>` : ""}
               </div>
@@ -1079,7 +1112,6 @@
       ];
 
       container.innerHTML = combined.map(item => {
-        // Distinct blue REPLY badge for @MSFT365Status replies on X
         const badgeHtml = item.isAdminNote
           ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30">ADMIN NOTE</span>`
           : item.isReply
@@ -1092,20 +1124,21 @@
           ? "border-sky-500/30 bg-sky-500/[0.04] dark:bg-sky-950/25"
           : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60";
 
-        const spanClass = item.isLive && item.text.length > 400 ? "md:col-span-2" : "";
+        const cleanDisplay = escapeHtml(formatFeedBulletText(item.text));
+        const spanClass = item.isLive && cleanDisplay.length > 400 ? "md:col-span-2" : "";
 
         return `
           <div class="p-4 rounded-xl border ${cardAccent} space-y-1.5 ${spanClass}">
             <div class="flex items-center justify-between gap-2">
               <div class="flex items-center gap-2 min-w-0">
-                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">${item.author}</span>
+                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">${escapeHtml(item.author)}</span>
                 ${badgeHtml}
               </div>
-              <span class="text-[11px] text-slate-400 shrink-0">${item.time}</span>
+              <span class="text-[11px] text-slate-400 shrink-0">${escapeHtml(item.time)}</span>
             </div>
-            ${item.handle ? `<div class="text-xs font-medium text-sky-600 dark:text-sky-400">${item.handle}</div>` : ""}
-            <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">${item.text}</p>
-            ${item.link ? `<a href="${item.link}" target="_blank" rel="noopener" class="inline-block text-xs text-sky-600 dark:text-sky-400 hover:underline pt-0.5">${item.isReply ? "View reply on X (@MSFT365Status) ↗" : "View source post ↗"}</a>` : ""}
+            ${item.handle ? `<div class="text-xs font-medium text-sky-600 dark:text-sky-400">${escapeHtml(stripHtml(item.handle))}</div>` : ""}
+            <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line break-words">${cleanDisplay}</p>
+            ${item.link ? `<a href="${escapeHtml(item.link)}" target="_blank" rel="noopener" class="inline-block text-xs text-sky-600 dark:text-sky-400 hover:underline pt-0.5">${item.isReply ? "View reply on X (@MSFT365Status) ↗" : "View source post ↗"}</a>` : ""}
           </div>
         `;
       }).join("");
@@ -1127,14 +1160,14 @@
         isReply: false
       });
 
-      localStorage.setItem("msmonitor_notes_v6", JSON.stringify(adminNotes));
+      localStorage.setItem("msmonitor_notes_v7", JSON.stringify(adminNotes));
       input.value = "";
       renderTimeline();
       showToast("✓ Internal IT note posted to timeline", "success");
     }
 
     // =========================================================================
-    // 7. MODAL CONTROLS WITH BACKGROUND SCROLL LOCK & ESCAPE KEY
+    // 8. MODAL CONTROLS WITH BACKGROUND SCROLL LOCK & ESCAPE KEY
     // =========================================================================
     function openDetailsModal(serviceId) {
       const svc = services.find(s => s.id === serviceId);
@@ -1142,9 +1175,9 @@
 
       document.getElementById("modal-incident-id").textContent = svc.incidentId;
       document.getElementById("modal-service-name").textContent = `${svc.name} (${svc.status.toUpperCase()})`;
-      document.getElementById("modal-impact").textContent = svc.impact;
-      document.getElementById("modal-rootcause").textContent = svc.rootCause;
-      document.getElementById("modal-mitigation").textContent = svc.mitigation;
+      document.getElementById("modal-impact").textContent = stripHtml(svc.impact);
+      document.getElementById("modal-rootcause").textContent = stripHtml(svc.rootCause);
+      document.getElementById("modal-mitigation").textContent = stripHtml(svc.mitigation);
 
       const modal = document.getElementById("details-modal");
       modal.classList.remove("hidden");
@@ -1200,7 +1233,7 @@
       if (!output) return;
 
       const impactedList = impacted.length
-        ? impacted.map(s => `• ${s.name} (${s.status.toUpperCase()}) — ${s.summary}`).join("\n")
+        ? impacted.map(s => `• ${s.name} (${s.status.toUpperCase()}) — ${stripHtml(s.summary)}`).join("\n")
         : "• All Microsoft 365 services are currently operating normally.";
 
       const phishingBlock = includePhishing
@@ -1242,7 +1275,7 @@
     }
 
     // =========================================================================
-    // 8. INITIALIZATION
+    // 9. INITIALIZATION
     // =========================================================================
     document.addEventListener("DOMContentLoaded", () => {
       const savedTheme = localStorage.getItem("msmonitor_theme");
