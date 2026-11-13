@@ -1,0 +1,70 @@
+name: Update M365 Status JSON
+
+on:
+  schedule:
+    # รันอัตโนมัติทุกๆ 10 นาที
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    # เพิ่มปุ่มให้กดสั่งรันด้วยตัวเองได้ตลอดเวลา
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch Microsoft 365 Public Status Feed
+        run: |
+          curl -sL -A "Mozilla/5.0" "https://status.cloud.microsoft/api/feed/mac" -o raw_feed.xml || true
+
+          python3 - << 'EOF'
+          import json
+          import re
+          from datetime import datetime, timezone
+          import xml.etree.ElementTree as ET
+
+          items = []
+          try:
+              tree = ET.parse("raw_feed.xml")
+              root = tree.getroot()
+              for item in root.findall(".//item")[:12]:
+                  title = (item.findtext("title") or "").strip()
+                  raw_desc = (item.findtext("description") or "").strip()
+                  clean_desc = re.sub(r"<[^>]+>", " ", raw_desc)
+                  clean_desc = re.sub(r"\s+", " ", clean_desc).strip()
+                  pub_date = (item.findtext("pubDate") or "").strip()
+                  link = (item.findtext("link") or "https://status.cloud.microsoft").strip()
+
+                  items.append({
+                      "title": title,
+                      "description": clean_desc,
+                      "pubDate": pub_date,
+                      "link": link,
+                      "source": "status.cloud.microsoft"
+                  })
+          except Exception as e:
+              print("XML parse note:", e)
+
+          output = {
+              "updatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "source": "Microsoft 365 Cloud Status Feed",
+              "count": len(items),
+              "items": items
+          }
+
+          with open("status.json", "w", encoding="utf-8") as f:
+              json.dump(output, f, ensure_ascii=False, indent=2)
+
+          print(f"Generated status.json with {len(items)} items.")
+          EOF
+
+      - name: Commit and push status.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add status.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: update live status.json [skip ci]" && git push)
