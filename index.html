@@ -234,7 +234,7 @@
       </div>
 
       <!-- Feed Timeline List -->
-      <div id="feed-timeline" class="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[520px] overflow-y-auto">
+      <div id="feed-timeline" class="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[560px] overflow-y-auto">
         <!-- Populated dynamically by JS -->
       </div>
     </section>
@@ -342,43 +342,43 @@
 
   <script>
     // =========================================================================
-    // 1. REFINED KEYWORD MAPPING (NO OVERLAPS OR FALSE POSITIVES)
+    // 1. KEYWORD MAPPING TUNED FOR MICROSOFT CLOUD STATUS FEED FORMAT
     // =========================================================================
     const SERVICE_KEYWORDS = {
       exchange: [
-        "exchange online", "exchange", "outlook", "mailbox", "owa", "ex155"
+        "exchange online", "outlook", "mailbox", "eas", "mapi"
       ],
       teams: [
-        "microsoft teams", "teams", "tm155"
+        "microsoft teams", "teams"
       ],
       sharepoint: [
-        "sharepoint online", "sharepoint", "sp155"
+        "sharepoint online", "sharepoint"
       ],
       onedrive: [
-        "onedrive for business", "onedrive", "one drive", "od155"
+        "onedrive for business", "onedrive"
       ],
       entra: [
-        "entra id", "microsoft entra", "azure active directory", "azure ad", "conditional access", "multi-factor authentication"
+        "entra id", "microsoft entra", "azure active directory", "conditional access"
       ],
       intune: [
-        "microsoft intune", "intune", "endpoint manager", "autopilot"
+        "microsoft intune", "intune", "device enrollment"
       ],
       powerplatform: [
         "power platform", "power automate", "power apps", "power bi", "power pages"
       ],
       copilot: [
-        "microsoft 365 copilot", "m365 copilot", "copilot for microsoft 365"
+        "microsoft copilot 365", "microsoft 365 copilot", "m365 copilot"
       ],
       copilotchat: [
-        "copilot studio", "copilot chat", "microsoft copilot", "bing chat"
+        "copilot chat", "copilot studio", "microsoft copilot"
       ]
     };
 
     const OUTAGE_TERMS = [
-      "outage", "interruption", "unavailable", "down", "unable to access", "cannot access", "service disruption"
+      "outage", "interruption", "unavailable", "down", "unable to access", "cannot access", "service disruption", "may not load"
     ];
     const DEGRADED_TERMS = [
-      "degradation", "degraded", "intermittent", "latency", "slow", "delay", "delays", "issue", "issues", "extended recovery", "advisory"
+      "degradation", "degraded", "intermittent", "latency", "slow", "delay", "delays", "issue", "issues", "extended recovery", "advisory", "impacted", "failures", "unable to"
     ];
     const HEALTHY_TERMS = [
       "restored", "resolved", "mitigated", "recovered", "healthy", "operating normally"
@@ -535,10 +535,10 @@
     ];
 
     // =========================================================================
-    // 3. STATE MANAGEMENT & PERSISTENCE (v4 Final Schema)
+    // 3. STATE MANAGEMENT & PERSISTENCE (v5 Section-Aware Schema)
     // =========================================================================
-    let services = JSON.parse(localStorage.getItem("msmonitor_services_v4")) || structuredClone(DEFAULT_SERVICES);
-    let adminNotes = JSON.parse(localStorage.getItem("msmonitor_notes_v4")) || [];
+    let services = JSON.parse(localStorage.getItem("msmonitor_services_v5")) || structuredClone(DEFAULT_SERVICES);
+    let adminNotes = JSON.parse(localStorage.getItem("msmonitor_notes_v5")) || [];
     let liveFeedItems = [];
     let currentFilter = "all";
     let currentAdvisoryTemplate = "teams";
@@ -558,11 +558,11 @@
     ];
 
     // =========================================================================
-    // 4. KEYWORD SCANNER: ACCURATELY SYNC ALL 9 CARDS (NO STALE STATES)
+    // 4. SECTION-AWARE KEYWORD SCANNER FOR MICROSOFT MULTI-SERVICE BULLETINS
     // =========================================================================
     function classifySeverity(text) {
       const lower = text.toLowerCase();
-      if (HEALTHY_TERMS.some(term => lower.includes(term)) && !lower.includes("not yet restored") && !lower.includes("partially")) {
+      if (HEALTHY_TERMS.some(term => lower.includes(term)) && !lower.includes("not yet restored") && !lower.includes("partially") && !lower.includes("remain")) {
         return "healthy";
       }
       if (OUTAGE_TERMS.some(term => lower.includes(term))) {
@@ -576,7 +576,22 @@
 
     function extractIncidentId(text) {
       const match = text.match(/\b(EX|MO|TM|SP|OD|IT|CP|PL)\d{5,8}\b/i);
-      return match ? match[0].toUpperCase() : "LIVE-ADVISORY";
+      return match ? match[0].toUpperCase() : "M365-ADVISORY";
+    }
+
+    function extractServiceSection(description, keywords) {
+      if (!description) return null;
+      // Clean HTML entities like &nbsp; before splitting
+      const cleanDesc = description.replace(/&nbsp;/g, " ").replace(/\s+/g, " ");
+      // Split multi-service bulletins structured as " - Service Name: details..."
+      const sections = cleanDesc.split(/\s+-\s+/);
+      for (const sec of sections) {
+        const lowerSec = sec.toLowerCase().trim();
+        if (keywords.some(kw => lowerSec.startsWith(kw) || lowerSec.includes(kw + ":"))) {
+          return sec.split("Current Status:")[0].trim();
+        }
+      }
+      return null;
     }
 
     function applyKeywordSyncToServices(items, sourceName) {
@@ -584,34 +599,43 @@
 
       let updatedCount = 0;
       const badge = document.getElementById("keyword-match-badge");
-
-      // Map items from oldest to newest so latest advisory takes precedence
       const chronologicalItems = [...items].reverse();
       const detectedUpdates = {};
 
       chronologicalItems.forEach(item => {
-        const combinedText = `${item.title || ""} ${item.description || ""}`.trim();
+        const title = item.title || "";
+        const desc = (item.description || "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+        const combinedText = `${title} ${desc}`.trim();
         const lowerText = combinedText.toLowerCase();
+
+        const currentStatusPart = desc.includes("Current Status:")
+          ? desc.split("Current Status:")[1].trim()
+          : combinedText;
 
         Object.entries(SERVICE_KEYWORDS).forEach(([serviceId, keywords]) => {
           const isMatch = keywords.some(kw => lowerText.includes(kw));
           if (isMatch) {
-            const severity = classifySeverity(combinedText);
+            const sectionText = extractServiceSection(desc, keywords);
+            const textToEvaluate = sectionText || combinedText;
+            const severity = classifySeverity(textToEvaluate);
             const incidentId = extractIncidentId(combinedText);
-            const cleanSnippet = (item.title || item.description || "").slice(0, 165);
+            const rawSummary = sectionText || title || desc;
+            const displaySummary = rawSummary.length > 175
+              ? rawSummary.slice(0, 175) + "..."
+              : rawSummary;
+
             detectedUpdates[serviceId] = {
               status: severity,
               incidentId: severity === "healthy" ? "Operational" : incidentId,
-              summary: cleanSnippet + (cleanSnippet.length >= 165 ? "..." : ""),
-              impact: item.description || item.title || "Active advisory detected from live status feed.",
-              rootCause: "Reported in active Microsoft Cloud Status advisory.",
-              mitigation: `Live telemetry synced from ${sourceName} (${item.pubDate || "Recent"}).`
+              summary: displaySummary,
+              impact: sectionText || desc || title,
+              rootCause: "Vendor-side Microsoft 365 service disruption affecting Exchange Online and dependent workloads.",
+              mitigation: currentStatusPart
             };
           }
         });
       });
 
-      // Reconcile ALL 9 non-overridden cards so unmentioned services don't stay stuck on stale baseline alerts
       services.forEach(svc => {
         if (svc.manualOverride) return;
 
@@ -692,6 +716,15 @@
       }, 3200);
     }
 
+    function formatFeedBulletText(rawText) {
+      if (!rawText) return "";
+      const cleaned = rawText.replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+      // Add line breaks before " - Service Name:" and "Current Status:" for readability
+      return cleaned
+        .replace(/\s+-\s+([A-Z])/g, "\n• $1")
+        .replace(/\s+(Current Status:|Scope of impact:|Next update by:)/g, "\n\n$1");
+    }
+
     async function syncLiveData(isManual = false) {
       if (isSyncing) return;
       isSyncing = true;
@@ -720,7 +753,7 @@
               time: item.pubDate || data.updatedAt || "Live Sync",
               title: item.title || "",
               description: item.description || "",
-              text: item.description || item.title || "Status update received.",
+              text: formatFeedBulletText(item.description || item.title || "Status update received."),
               link: item.link || "https://status.cloud.microsoft",
               isLive: true
             }));
@@ -741,7 +774,7 @@
             const data = await res.json();
             if (data.status === "ok" && Array.isArray(data.items) && data.items.length > 0) {
               fetchedItems = data.items.slice(0, 8).map((item, idx) => {
-                const cleanText = (item.description || "").replace(/<[^>]*>?/gm, " ").replace(/\s+/g, " ").trim();
+                const cleanText = (item.description || "").replace(/<[^>]*>?/gm, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
                 return {
                   id: `live-rss-${idx}`,
                   author: bridge.name,
@@ -749,7 +782,7 @@
                   time: item.pubDate || "Recent",
                   title: item.title || "",
                   description: cleanText,
-                  text: cleanText || item.title,
+                  text: formatFeedBulletText(cleanText || item.title),
                   link: item.link || "https://status.cloud.microsoft",
                   isLive: true
                 };
@@ -829,7 +862,7 @@
     // 6. UI RENDERING (BANNER, 3x3 SERVICE CARDS, TIMELINE, MODALS)
     // =========================================================================
     function saveServices() {
-      localStorage.setItem("msmonitor_services_v4", JSON.stringify(services));
+      localStorage.setItem("msmonitor_services_v5", JSON.stringify(services));
     }
 
     function cycleServiceStatus(serviceId) {
@@ -853,8 +886,8 @@
     }
 
     function resetSimulation() {
-      localStorage.removeItem("msmonitor_services_v4");
-      localStorage.removeItem("msmonitor_notes_v4");
+      localStorage.removeItem("msmonitor_services_v5");
+      localStorage.removeItem("msmonitor_notes_v5");
       services = structuredClone(DEFAULT_SERVICES);
       adminNotes = [];
       const badge = document.getElementById("keyword-match-badge");
@@ -1012,6 +1045,9 @@
         ...BASELINE_FEED
       ];
 
+      // If there's only 1 long live item, span it across both columns on desktop
+      const spanFull = combined.length <= 4;
+
       container.innerHTML = combined.map(item => {
         const badgeHtml = item.isAdminNote
           ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30">ADMIN NOTE</span>`
@@ -1019,8 +1055,10 @@
           ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">LIVE</span>`
           : `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">ARCHIVE</span>`;
 
+        const spanClass = item.isLive && item.text.length > 400 ? "md:col-span-2" : "";
+
         return `
-          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-1.5">
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-1.5 ${spanClass}">
             <div class="flex items-center justify-between gap-2">
               <div class="flex items-center gap-2 min-w-0">
                 <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">${item.author}</span>
@@ -1029,7 +1067,7 @@
               <span class="text-[11px] text-slate-400 shrink-0">${item.time}</span>
             </div>
             ${item.handle ? `<div class="text-xs font-medium text-sky-600 dark:text-sky-400">${item.handle}</div>` : ""}
-            <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">${item.text}</p>
+            <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">${item.text}</p>
             ${item.link ? `<a href="${item.link}" target="_blank" rel="noopener" class="inline-block text-xs text-sky-600 dark:text-sky-400 hover:underline pt-0.5">View source post ↗</a>` : ""}
           </div>
         `;
@@ -1051,7 +1089,7 @@
         isAdminNote: true
       });
 
-      localStorage.setItem("msmonitor_notes_v4", JSON.stringify(adminNotes));
+      localStorage.setItem("msmonitor_notes_v5", JSON.stringify(adminNotes));
       input.value = "";
       renderTimeline();
       showToast("✓ Internal IT note posted to timeline", "success");
