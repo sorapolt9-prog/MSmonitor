@@ -126,7 +126,7 @@
   </header>
 
   <!-- Main Workspace -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
 
     <!-- Global Status Banner -->
     <section id="global-banner" class="rounded-2xl p-5 border transition-all duration-300 shadow-sm bg-rose-500/10 border-rose-500/30">
@@ -166,84 +166,78 @@
       </div>
     </section>
 
-    <!-- Two-Column Operations Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <!-- Full-Width 3x3 Service Health Matrix Section -->
+    <section class="space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h3 class="text-base sm:text-lg font-bold">Core Service Health Matrix (9 Workloads)</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">
+            3×3 full-width view — Auto-scanned from live feed keywords or click status badge to simulate
+          </p>
+        </div>
 
-      <!-- Left 7 Columns: Service Health Matrix -->
-      <div class="lg:col-span-7 space-y-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <!-- Filter & Search -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <div class="inline-flex rounded-lg p-0.5 bg-slate-200/80 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs">
+            <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-md font-semibold bg-white dark:bg-slate-700 shadow-xs cursor-pointer">All (9)</button>
+            <button onclick="setFilter('impacted')" id="filter-impacted" class="px-3 py-1 rounded-md font-medium text-slate-600 dark:text-slate-300 cursor-pointer">Impacted</button>
+            <button onclick="setFilter('healthy')" id="filter-healthy" class="px-3 py-1 rounded-md font-medium text-slate-600 dark:text-slate-300 cursor-pointer">Healthy</button>
+          </div>
+          <input
+            id="service-search"
+            type="text"
+            oninput="renderServices()"
+            placeholder="Filter service or ID..."
+            class="px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 w-48 sm:w-56"
+          />
+        </div>
+      </div>
+
+      <!-- 3-Column (3x3) Service Cards Grid -->
+      <div id="services-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Populated dynamically by JS -->
+      </div>
+    </section>
+
+    <!-- Full-Width @MSFT365Status & Live Cloud Feed Section -->
+    <section class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+      <div class="p-4 sm:px-6 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-slate-900 dark:bg-slate-800 text-white flex items-center justify-center font-bold text-sm border border-slate-700">
+            𝕏
+          </div>
           <div>
-            <h3 class="text-base font-bold">Core Service Health Matrix</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400">
-              Auto-scanned from live feed keywords or click status badge to simulate
+            <h3 class="text-sm sm:text-base font-bold leading-tight">@MSFT365Status & Cloud Status Feed</h3>
+            <p id="feed-subtitle" class="text-xs text-slate-500 dark:text-slate-400">
+              Live advisories synced from Microsoft Cloud Status & internal IT incident logs
             </p>
           </div>
-
-          <!-- Filter & Search -->
-          <div class="flex flex-wrap items-center gap-2">
-            <div class="inline-flex rounded-lg p-0.5 bg-slate-200/80 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs">
-              <button onclick="setFilter('all')" id="filter-all" class="px-2.5 py-1 rounded-md font-semibold bg-white dark:bg-slate-700 shadow-xs cursor-pointer">All</button>
-              <button onclick="setFilter('impacted')" id="filter-impacted" class="px-2.5 py-1 rounded-md font-medium text-slate-600 dark:text-slate-300 cursor-pointer">Impacted</button>
-              <button onclick="setFilter('healthy')" id="filter-healthy" class="px-2.5 py-1 rounded-md font-medium text-slate-600 dark:text-slate-300 cursor-pointer">Healthy</button>
-            </div>
-            <input
-              id="service-search"
-              type="text"
-              oninput="renderServices()"
-              placeholder="Filter service or ID..."
-              class="px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 w-40 sm:w-44"
-            />
-          </div>
         </div>
-
-        <!-- Service Cards Grid -->
-        <div id="services-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          <!-- Populated dynamically by JS -->
-        </div>
+        <span id="feed-source-tag" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
+          Baseline
+        </span>
       </div>
 
-      <!-- Right 5 Columns: @MSFT365Status & Live Cloud Feed -->
-      <div class="lg:col-span-5 space-y-4">
-        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-          <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-              <div class="w-8 h-8 rounded-full bg-slate-900 dark:bg-slate-800 text-white flex items-center justify-center font-bold text-xs border border-slate-700">
-                𝕏
-              </div>
-              <div>
-                <h3 class="text-sm font-bold leading-tight">@MSFT365Status & Cloud Feed</h3>
-                <p id="feed-subtitle" class="text-[11px] text-slate-500 dark:text-slate-400">
-                  Live feed & incident advisories
-                </p>
-              </div>
-            </div>
-            <span id="feed-source-tag" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
-              Baseline
-            </span>
-          </div>
-
-          <!-- Admin Note Input -->
-          <div class="p-3 bg-slate-50 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800">
-            <form onsubmit="addAdminNote(event)" class="flex gap-2">
-              <input
-                id="admin-note-input"
-                type="text"
-                placeholder="Log internal IT incident note..."
-                class="flex-1 px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-              />
-              <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 dark:bg-sky-600 dark:hover:bg-sky-500 text-white transition cursor-pointer">
-                Post Note
-              </button>
-            </form>
-          </div>
-
-          <!-- Feed Timeline List -->
-          <div id="feed-timeline" class="p-4 space-y-3.5 max-h-[540px] overflow-y-auto">
-            <!-- Populated dynamically by JS -->
-          </div>
-        </div>
+      <!-- Admin Note Input -->
+      <div class="p-4 sm:px-6 bg-slate-50 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800">
+        <form onsubmit="addAdminNote(event)" class="flex flex-col sm:flex-row gap-2.5">
+          <input
+            id="admin-note-input"
+            type="text"
+            placeholder="Log an internal IT operations note or user impact update..."
+            class="flex-1 px-3.5 py-2 text-xs sm:text-sm rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          />
+          <button type="submit" class="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 dark:bg-sky-600 dark:hover:bg-sky-500 text-white transition cursor-pointer shrink-0">
+            Post Internal Note
+          </button>
+        </form>
       </div>
-    </div>
+
+      <!-- Feed Timeline List -->
+      <div id="feed-timeline" class="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[520px] overflow-y-auto">
+        <!-- Populated dynamically by JS -->
+      </div>
+    </section>
   </main>
 
   <!-- Service Incident Details Modal -->
@@ -360,10 +354,13 @@
         "intune", "endpoint manager", "mdm", "device management", "autopilot"
       ],
       powerplatform: [
-        "power platform", "power automate", "power apps", "power bi", "flow", "copilot studio"
+        "power platform", "power automate", "power apps", "power bi", "flow"
       ],
       copilot: [
-        "copilot", "m365 copilot", "microsoft 365 copilot", "bizchat"
+        "m365 copilot", "microsoft 365 copilot", "copilot for microsoft 365", "bizchat"
+      ],
+      copilotchat: [
+        "copilot chat", "copilot studio", "microsoft copilot", "bing chat", "copilot"
       ]
     };
 
@@ -378,7 +375,7 @@
     ];
 
     // =========================================================================
-    // 2. BASELINE DATASET (Nov 12-13, 2026 Incident Reference)
+    // 2. BASELINE DATASET (9 Workloads including 2 Copilot Services)
     // =========================================================================
     const DEFAULT_SERVICES = [
       {
@@ -475,13 +472,26 @@
       {
         id: "copilot",
         name: "Microsoft 365 Copilot",
-        category: "AI Assistant",
+        category: "Office Apps & Graph Grounding",
         status: "degraded",
         incidentId: "MO1550821",
-        summary: "Reduced grounding context when summarizing recent emails, Teams chats, or files.",
-        impact: "Prompts referencing recent mailbox or SharePoint items may return partial results or timeout.",
+        summary: "Reduced grounding context in Word, Outlook, and Teams when referencing recent emails or files.",
+        impact: "Prompts inside M365 apps referencing recent mailbox or SharePoint items may return partial results or timeout.",
         rootCause: "Semantic index queries depend on degraded Exchange and SharePoint retrieval endpoints.",
         mitigation: "Core LLM inference remains healthy; grounding accuracy improves automatically as M365 workloads recover.",
+        autoSynced: false,
+        manualOverride: false
+      },
+      {
+        id: "copilotchat",
+        name: "Microsoft Copilot (Web & Studio)",
+        category: "AI Chat & Custom Agents",
+        status: "healthy",
+        incidentId: "Operational",
+        summary: "Standalone Copilot web chat and Copilot Studio custom agents operating normally.",
+        impact: "No active service-wide interruptions reported for web chat or custom agents.",
+        rootCause: "N/A — Service operating normally.",
+        mitigation: "Continuous automated health monitoring active.",
         autoSynced: false,
         manualOverride: false
       }
@@ -515,10 +525,10 @@
     ];
 
     // =========================================================================
-    // 3. STATE MANAGEMENT & PERSISTENCE
+    // 3. STATE MANAGEMENT & PERSISTENCE (v3 for 9-Card Schema)
     // =========================================================================
-    let services = JSON.parse(localStorage.getItem("msmonitor_services_v2")) || structuredClone(DEFAULT_SERVICES);
-    let adminNotes = JSON.parse(localStorage.getItem("msmonitor_notes_v2")) || [];
+    let services = JSON.parse(localStorage.getItem("msmonitor_services_v3")) || structuredClone(DEFAULT_SERVICES);
+    let adminNotes = JSON.parse(localStorage.getItem("msmonitor_notes_v3")) || [];
     let liveFeedItems = [];
     let currentFilter = "all";
     let currentAdvisoryTemplate = "teams";
@@ -538,11 +548,10 @@
     ];
 
     // =========================================================================
-    // 4. KEYWORD SCANNER: MAP LIVE FEED ITEMS -> 8 SERVICE CARDS
+    // 4. KEYWORD SCANNER: MAP LIVE FEED ITEMS -> 9 SERVICE CARDS
     // =========================================================================
     function classifySeverity(text) {
       const lower = text.toLowerCase();
-      // Check resolved/healthy first if explicitly stated as restored
       if (HEALTHY_TERMS.some(term => lower.includes(term)) && !lower.includes("not yet restored") && !lower.includes("partially")) {
         return "healthy";
       }
@@ -552,7 +561,7 @@
       if (DEGRADED_TERMS.some(term => lower.includes(term))) {
         return "degraded";
       }
-      return "degraded"; // Default cautious status if an active incident mentions the service
+      return "degraded";
     }
 
     function extractIncidentId(text) {
@@ -566,7 +575,6 @@
       let matchedServiceCount = 0;
       const badge = document.getElementById("keyword-match-badge");
 
-      // If status.json was successfully fetched and has 0 active incidents, mark non-overridden services healthy
       if (items.length === 0) {
         services.forEach(svc => {
           if (!svc.manualOverride) {
@@ -585,7 +593,6 @@
         return matchedServiceCount;
       }
 
-      // Scan items from oldest to newest so the most recent item wins if multiple mention the same service
       const chronologicalItems = [...items].reverse();
       const detectedUpdates = {};
 
@@ -610,7 +617,6 @@
         });
       });
 
-      // Apply detected updates to non-manually-overridden service cards
       services.forEach(svc => {
         if (!svc.manualOverride && detectedUpdates[svc.id]) {
           const upd = detectedUpdates[svc.id];
@@ -716,7 +722,7 @@
           }
         }
       } catch (e) {
-        // Fallback to Tier 2 when running locally or before GitHub Action runs
+        // Fallback to Tier 2
       }
 
       // Tier 2: Public CORS RSS-to-JSON bridge fallback
@@ -760,23 +766,21 @@
         updateSyncPill("live", `Synced via ${syncedSource} • ${nowStr}`);
         if (feedSourceTag) {
           feedSourceTag.textContent = `LIVE • ${syncedSource}`;
-          feedSourceTag.className = "text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30";
+          feedSourceTag.className = "text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30";
         }
         showToast(
           `✓ Refreshed via ${syncedSource} (${nowStr})${updatedCount > 0 ? ` • ${updatedCount} service(s) synced` : ""}`,
           "success"
         );
       } else {
-        // Tier 3: Baseline / Local Simulation Mode
         updateSyncPill("baseline", `Synced (Baseline Mode • ${nowStr})`);
         if (feedSourceTag) {
           feedSourceTag.textContent = "Baseline Mode";
-          feedSourceTag.className = "text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30";
+          feedSourceTag.className = "text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30";
         }
         showToast(`✓ Refresh completed in Baseline Mode (${nowStr})`, "warning");
       }
 
-      // Visual confirmation on Sync button
       if (syncIcon) syncIcon.classList.remove("animate-spin");
       if (syncBtnLabel) syncBtnLabel.textContent = "✓ Refreshed!";
       if (syncBtn) {
@@ -816,10 +820,10 @@
     }
 
     // =========================================================================
-    // 6. UI RENDERING (BANNER, SERVICE CARDS, TIMELINE, ADVISORY)
+    // 6. UI RENDERING (BANNER, 3x3 SERVICE CARDS, TIMELINE, ADVISORY)
     // =========================================================================
     function saveServices() {
-      localStorage.setItem("msmonitor_services_v2", JSON.stringify(services));
+      localStorage.setItem("msmonitor_services_v3", JSON.stringify(services));
     }
 
     function cycleServiceStatus(serviceId) {
@@ -843,8 +847,8 @@
     }
 
     function resetSimulation() {
-      localStorage.removeItem("msmonitor_services_v2");
-      localStorage.removeItem("msmonitor_notes_v2");
+      localStorage.removeItem("msmonitor_services_v3");
+      localStorage.removeItem("msmonitor_notes_v3");
       services = structuredClone(DEFAULT_SERVICES);
       adminNotes = [];
       const badge = document.getElementById("keyword-match-badge");
@@ -859,9 +863,9 @@
         const btn = document.getElementById(`filter-${f}`);
         if (!btn) return;
         if (f === filter) {
-          btn.className = "px-2.5 py-1 rounded-md font-semibold bg-white dark:bg-slate-700 shadow-xs cursor-pointer";
+          btn.className = "px-3 py-1 rounded-md font-semibold bg-white dark:bg-slate-700 shadow-xs cursor-pointer";
         } else {
-          btn.className = "px-2.5 py-1 rounded-md font-medium text-slate-600 dark:text-slate-300 cursor-pointer";
+          btn.className = "px-3 py-1 rounded-md font-medium text-slate-600 dark:text-slate-300 cursor-pointer";
         }
       });
       renderServices();
@@ -953,32 +957,32 @@
       grid.innerHTML = filtered.map(svc => {
         const cfg = statusConfig[svc.status] || statusConfig.healthy;
         return `
-          <div class="rounded-xl p-4 bg-white dark:bg-slate-900 border ${cfg.cardBorder} shadow-xs flex flex-col justify-between gap-3 transition hover:shadow-md">
+          <div class="rounded-xl p-4 sm:p-5 bg-white dark:bg-slate-900 border ${cfg.cardBorder} shadow-xs flex flex-col justify-between gap-3.5 transition hover:shadow-md">
             <div>
               <div class="flex items-start justify-between gap-2">
                 <div>
-                  <h4 class="font-bold text-sm text-slate-900 dark:text-slate-100">${svc.name}</h4>
-                  <span class="text-[11px] text-slate-500 dark:text-slate-400">${svc.category}</span>
+                  <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100">${svc.name}</h4>
+                  <span class="text-xs text-slate-500 dark:text-slate-400">${svc.category}</span>
                 </div>
                 <button
                   onclick="cycleServiceStatus('${svc.id}')"
                   title="Click to simulate status change"
-                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${cfg.badge} cursor-pointer shrink-0"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.badge} cursor-pointer shrink-0"
                 >
                   <span class="w-1.5 h-1.5 rounded-full ${cfg.dot}"></span>
                   ${cfg.label}
                 </button>
               </div>
-              <p class="text-xs text-slate-600 dark:text-slate-300 mt-2.5 leading-relaxed line-clamp-3">
+              <p class="text-xs text-slate-600 dark:text-slate-300 mt-3 leading-relaxed line-clamp-3">
                 ${svc.summary}
               </p>
             </div>
 
-            <div class="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+            <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
               <div class="flex items-center gap-1.5">
                 <span class="font-mono text-slate-500 dark:text-slate-400">${svc.incidentId}</span>
-                ${svc.autoSynced ? `<span class="px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-600 dark:text-sky-300 font-semibold text-[10px]">AUTO-SYNCED</span>` : ""}
-                ${svc.manualOverride ? `<span class="px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-600 dark:text-purple-300 font-semibold text-[10px]">SIMULATED</span>` : ""}
+                ${svc.autoSynced ? `<span class="px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-600 dark:text-sky-300 font-semibold text-[10px]">AUTO-SYNCED</span>` : ""}
+                ${svc.manualOverride ? `<span class="px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-300 font-semibold text-[10px]">SIMULATED</span>` : ""}
               </div>
               <button
                 onclick="openDetailsModal('${svc.id}')"
@@ -1010,7 +1014,7 @@
           : `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">ARCHIVE</span>`;
 
         return `
-          <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-1.5">
+          <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-1.5">
             <div class="flex items-center justify-between gap-2">
               <div class="flex items-center gap-2 min-w-0">
                 <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">${item.author}</span>
@@ -1018,9 +1022,9 @@
               </div>
               <span class="text-[11px] text-slate-400 shrink-0">${item.time}</span>
             </div>
-            ${item.handle ? `<div class="text-[11px] font-medium text-sky-600 dark:text-sky-400">${item.handle}</div>` : ""}
+            ${item.handle ? `<div class="text-xs font-medium text-sky-600 dark:text-sky-400">${item.handle}</div>` : ""}
             <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">${item.text}</p>
-            ${item.link ? `<a href="${item.link}" target="_blank" rel="noopener" class="inline-block text-[11px] text-sky-600 dark:text-sky-400 hover:underline pt-0.5">View source post ↗</a>` : ""}
+            ${item.link ? `<a href="${item.link}" target="_blank" rel="noopener" class="inline-block text-xs text-sky-600 dark:text-sky-400 hover:underline pt-0.5">View source post ↗</a>` : ""}
           </div>
         `;
       }).join("");
@@ -1041,7 +1045,7 @@
         isAdminNote: true
       });
 
-      localStorage.setItem("msmonitor_notes_v2", JSON.stringify(adminNotes));
+      localStorage.setItem("msmonitor_notes_v3", JSON.stringify(adminNotes));
       input.value = "";
       renderTimeline();
       showToast("✓ Internal IT note posted to timeline", "success");
