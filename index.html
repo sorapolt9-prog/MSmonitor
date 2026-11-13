@@ -172,7 +172,7 @@
         <div>
           <h3 class="text-base sm:text-lg font-bold">Core Service Health Matrix (9 Workloads)</h3>
           <p class="text-xs text-slate-500 dark:text-slate-400">
-            3×3 full-width view — Auto-scanned from live feed keywords or click status badge to simulate
+            3×3 full-width view — Auto-synced from Microsoft Cloud Status or click status badge to simulate
           </p>
         </div>
 
@@ -342,35 +342,35 @@
 
   <script>
     // =========================================================================
-    // 1. KEYWORD MAPPING FOR AUTOMATIC CARD UPDATES FROM status.json / RSS
+    // 1. REFINED KEYWORD MAPPING (NO OVERLAPS OR FALSE POSITIVES)
     // =========================================================================
     const SERVICE_KEYWORDS = {
       exchange: [
-        "exchange", "outlook", "email", "mail flow", "mailbox", "owa", "ex155"
+        "exchange online", "exchange", "outlook", "mailbox", "owa", "ex155"
       ],
       teams: [
-        "teams", "microsoft teams", "meeting", "chat", "calling", "tm155"
+        "microsoft teams", "teams", "tm155"
       ],
       sharepoint: [
-        "sharepoint", "spo", "site collection", "document library", "sp155"
+        "sharepoint online", "sharepoint", "sp155"
       ],
       onedrive: [
-        "onedrive", "one drive", "file sync", "od155"
+        "onedrive for business", "onedrive", "one drive", "od155"
       ],
       entra: [
-        "entra", "azure ad", "active directory", "authentication", "sign-in", "signin", "login", "mfa", "conditional access"
+        "entra id", "microsoft entra", "azure active directory", "azure ad", "conditional access", "multi-factor authentication"
       ],
       intune: [
-        "intune", "endpoint manager", "mdm", "device management", "autopilot"
+        "microsoft intune", "intune", "endpoint manager", "autopilot"
       ],
       powerplatform: [
-        "power platform", "power automate", "power apps", "power bi", "flow"
+        "power platform", "power automate", "power apps", "power bi", "power pages"
       ],
       copilot: [
-        "m365 copilot", "microsoft 365 copilot", "copilot for microsoft 365", "bizchat"
+        "microsoft 365 copilot", "m365 copilot", "copilot for microsoft 365"
       ],
       copilotchat: [
-        "copilot chat", "copilot studio", "microsoft copilot", "bing chat", "copilot"
+        "copilot studio", "copilot chat", "microsoft copilot", "bing chat"
       ]
     };
 
@@ -535,10 +535,10 @@
     ];
 
     // =========================================================================
-    // 3. STATE MANAGEMENT & PERSISTENCE (v3 for 9-Card Schema)
+    // 3. STATE MANAGEMENT & PERSISTENCE (v4 Final Schema)
     // =========================================================================
-    let services = JSON.parse(localStorage.getItem("msmonitor_services_v3")) || structuredClone(DEFAULT_SERVICES);
-    let adminNotes = JSON.parse(localStorage.getItem("msmonitor_notes_v3")) || [];
+    let services = JSON.parse(localStorage.getItem("msmonitor_services_v4")) || structuredClone(DEFAULT_SERVICES);
+    let adminNotes = JSON.parse(localStorage.getItem("msmonitor_notes_v4")) || [];
     let liveFeedItems = [];
     let currentFilter = "all";
     let currentAdvisoryTemplate = "teams";
@@ -558,7 +558,7 @@
     ];
 
     // =========================================================================
-    // 4. KEYWORD SCANNER: MAP LIVE FEED ITEMS -> 9 SERVICE CARDS
+    // 4. KEYWORD SCANNER: ACCURATELY SYNC ALL 9 CARDS (NO STALE STATES)
     // =========================================================================
     function classifySeverity(text) {
       const lower = text.toLowerCase();
@@ -582,27 +582,10 @@
     function applyKeywordSyncToServices(items, sourceName) {
       if (!Array.isArray(items)) return 0;
 
-      let matchedServiceCount = 0;
+      let updatedCount = 0;
       const badge = document.getElementById("keyword-match-badge");
 
-      if (items.length === 0) {
-        services.forEach(svc => {
-          if (!svc.manualOverride) {
-            svc.status = "healthy";
-            svc.incidentId = "Operational";
-            svc.summary = `Verified operational via ${sourceName} (0 active global advisories).`;
-            svc.autoSynced = true;
-            matchedServiceCount++;
-          }
-        });
-        if (badge) {
-          badge.textContent = "Keyword Sync: 0 Active Advisories (All Clear)";
-          badge.classList.remove("hidden");
-        }
-        saveServices();
-        return matchedServiceCount;
-      }
-
+      // Map items from oldest to newest so latest advisory takes precedence
       const chronologicalItems = [...items].reverse();
       const detectedUpdates = {};
 
@@ -621,34 +604,47 @@
               incidentId: severity === "healthy" ? "Operational" : incidentId,
               summary: cleanSnippet + (cleanSnippet.length >= 165 ? "..." : ""),
               impact: item.description || item.title || "Active advisory detected from live status feed.",
+              rootCause: "Reported in active Microsoft Cloud Status advisory.",
               mitigation: `Live telemetry synced from ${sourceName} (${item.pubDate || "Recent"}).`
             };
           }
         });
       });
 
+      // Reconcile ALL 9 non-overridden cards so unmentioned services don't stay stuck on stale baseline alerts
       services.forEach(svc => {
-        if (!svc.manualOverride && detectedUpdates[svc.id]) {
+        if (svc.manualOverride) return;
+
+        if (detectedUpdates[svc.id]) {
           const upd = detectedUpdates[svc.id];
           svc.status = upd.status;
           svc.incidentId = upd.incidentId;
           svc.summary = upd.summary;
           svc.impact = upd.impact;
+          svc.rootCause = upd.rootCause;
           svc.mitigation = upd.mitigation;
           svc.autoSynced = true;
-          matchedServiceCount++;
+          updatedCount++;
+        } else {
+          svc.status = "healthy";
+          svc.incidentId = "Operational";
+          svc.summary = `Verified operational via ${sourceName} (no active advisories for ${svc.name}).`;
+          svc.impact = "No active service-wide interruptions reported.";
+          svc.rootCause = "N/A — Service operating normally.";
+          svc.mitigation = `Live telemetry synced from ${sourceName}.`;
+          svc.autoSynced = true;
         }
       });
 
       if (badge) {
-        badge.textContent = matchedServiceCount > 0
-          ? `Keyword Sync: Updated ${matchedServiceCount} service(s)`
-          : `Keyword Sync: Scanned ${items.length} post(s)`;
+        badge.textContent = updatedCount > 0
+          ? `Live Sync: ${updatedCount} Active Match(es), ${9 - updatedCount} Healthy`
+          : `Live Sync: All 9 Services Healthy (0 Advisories)`;
         badge.classList.remove("hidden");
       }
 
       saveServices();
-      return matchedServiceCount;
+      return updatedCount;
     }
 
     // =========================================================================
@@ -772,14 +768,14 @@
 
       if (syncedSource) {
         liveFeedItems = fetchedItems;
-        const updatedCount = applyKeywordSyncToServices(fetchedItems, syncedSource);
+        const matchedCount = applyKeywordSyncToServices(fetchedItems, syncedSource);
         updateSyncPill("live", `Synced via ${syncedSource} • ${nowStr}`);
         if (feedSourceTag) {
           feedSourceTag.textContent = `LIVE • ${syncedSource}`;
           feedSourceTag.className = "text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30";
         }
         showToast(
-          `✓ Refreshed via ${syncedSource} (${nowStr})${updatedCount > 0 ? ` • ${updatedCount} service(s) synced` : ""}`,
+          `✓ Refreshed via ${syncedSource} (${nowStr}) • ${matchedCount > 0 ? `${matchedCount} active alert(s)` : "All 9 services verified"}`,
           "success"
         );
       } else {
@@ -833,7 +829,7 @@
     // 6. UI RENDERING (BANNER, 3x3 SERVICE CARDS, TIMELINE, MODALS)
     // =========================================================================
     function saveServices() {
-      localStorage.setItem("msmonitor_services_v3", JSON.stringify(services));
+      localStorage.setItem("msmonitor_services_v4", JSON.stringify(services));
     }
 
     function cycleServiceStatus(serviceId) {
@@ -857,8 +853,8 @@
     }
 
     function resetSimulation() {
-      localStorage.removeItem("msmonitor_services_v3");
-      localStorage.removeItem("msmonitor_notes_v3");
+      localStorage.removeItem("msmonitor_services_v4");
+      localStorage.removeItem("msmonitor_notes_v4");
       services = structuredClone(DEFAULT_SERVICES);
       adminNotes = [];
       const badge = document.getElementById("keyword-match-badge");
@@ -1055,7 +1051,7 @@
         isAdminNote: true
       });
 
-      localStorage.setItem("msmonitor_notes_v3", JSON.stringify(adminNotes));
+      localStorage.setItem("msmonitor_notes_v4", JSON.stringify(adminNotes));
       input.value = "";
       renderTimeline();
       showToast("✓ Internal IT note posted to timeline", "success");
