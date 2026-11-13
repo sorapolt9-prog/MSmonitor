@@ -2,69 +2,101 @@ name: Update M365 Status JSON
 
 on:
   schedule:
-    # รันอัตโนมัติทุกๆ 10 นาที
-    - cron: '*/10 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
-    # เพิ่มปุ่มให้กดสั่งรันด้วยตัวเองได้ตลอดเวลา
 
 permissions:
   contents: write
 
 jobs:
-  fetch-status:
+  update-status:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch Microsoft 365 Public Status Feed
+      - name: Fetch M365 Status & @MSFT365Status Replies
         run: |
-          curl -sL -A "Mozilla/5.0" "https://status.cloud.microsoft/api/feed/mac" -o raw_feed.xml || true
+          node -e '
+          const fs = require("fs");
 
-          python3 - << 'EOF'
-          import json
-          import re
-          from datetime import datetime, timezone
-          import xml.etree.ElementTree as ET
+          function parseRssItems(xml, sourceLabel) {
+            const items = [];
+            const itemBlocks = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+            for (const block of itemBlocks.slice(0, 10)) {
+              const title = (block.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/)?.[1] ||
+                             block.match(/<title>([\s\S]*?)<\/title>/)?.[1] || "").trim();
+              const rawDesc = (block.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/)?.[1] ||
+                               block.match(/<description>([\s\S]*?)<\/description>/)?.[1] || "").trim();
+              const desc = rawDesc.replace(/<[^>]*>?/gm, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+              const link = (block.match(/<link>([\s\S]*?)<\/link>/)?.[1] || "").trim();
+              const pubDate = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || "").trim();
 
-          items = []
-          try:
-              tree = ET.parse("raw_feed.xml")
-              root = tree.getroot()
-              for item in root.findall(".//item")[:12]:
-                  title = (item.findtext("title") or "").strip()
-                  raw_desc = (item.findtext("description") or "").strip()
-                  clean_desc = re.sub(r"<[^>]+>", " ", raw_desc)
-                  clean_desc = re.sub(r"\s+", " ", clean_desc).strip()
-                  pub_date = (item.findtext("pubDate") or "").strip()
-                  link = (item.findtext("link") or "https://status.cloud.microsoft").strip()
-
-                  items.append({
-                      "title": title,
-                      "description": clean_desc,
-                      "pubDate": pub_date,
-                      "link": link,
-                      "source": "status.cloud.microsoft"
-                  })
-          except Exception as e:
-              print("XML parse note:", e)
-
-          output = {
-              "updatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-              "source": "Microsoft 365 Cloud Status Feed",
-              "count": len(items),
-              "items": items
+              const isReply = title.startsWith("Re:") || title.startsWith("@") || desc.startsWith("@");
+              items.push({
+                title: isReply ? `@MSFT365Status (Reply)` : (title || sourceLabel),
+                description: desc || title,
+                pubDate,
+                link: link || "https://x.com/MSFT365Status/with_replies",
+                source: isReply ? "@MSFT365Status (Reply)" : sourceLabel
+              });
+            }
+            return items;
           }
 
-          with open("status.json", "w", encoding="utf-8") as f:
-              json.dump(output, f, ensure_ascii=False, indent=2)
+          async function main() {
+            const allItems = [];
 
-          print(f"Generated status.json with {len(items)} items.")
-          EOF
+            // 1. ดึงจาก Microsoft 365 Cloud Status Official RSS
+            try {
+              const resMac = await fetch("https://status.cloud.microsoft/api/feed/mac");
+              if (resMac.ok) {
+                const xmlMac = await resMac.text();
+                allItems.push(...parseRssItems(xmlMac, "status.cloud.microsoft"));
+              }
+            } catch (e) { console.error("MAC RSS failed:", e.message); }
 
-      - name: Commit and push status.json
+            // 2. ดึงจาก @MSFT365Status (รวม Replies) ผ่าน RSS Bridges
+            const xBridges = [
+              "https://rsshub.app/twitter/user/MSFT365Status/includeRts=0&excludeReplies=0",
+              "https://nitter.net/MSFT365Status/with_replies/rss",
+              "https://nitter.privacydev.net/MSFT365Status/with_replies/rss"
+            ];
+
+            for (const url of xBridges) {
+              try {
+                const resX = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 MSMonitor-Bot" } });
+                if (resX.ok) {
+                  const xmlX = await resX.text();
+                  const parsedX = parseRssItems(xmlX, "@MSFT365Status");
+                  if (parsedX.length > 0) {
+                    allItems.push(...parsedX);
+                    break;
+                  }
+                }
+              } catch (e) { console.error("X Bridge failed:", url, e.message); }
+            }
+
+            // เรียงลำดับจากโพสต์ใหม่สุดไปเก่าสุด
+            allItems.sort((a, b) => new Date(b.pubDate || 0) - new Date(a.pubDate || 0));
+
+            const payload = {
+              updatedAt: new Date().toISOString(),
+              source: "Microsoft 365 Cloud Status + @MSFT365Status (with Replies)",
+              count: allItems.length,
+              items: allItems.slice(0, 15)
+            };
+
+            fs.writeFileSync("status.json", JSON.stringify(payload, null, 2));
+            console.log("Saved status.json with", payload.count, "items.");
+          }
+          main();
+          '
+
+      - name: Commit and push updated status.json
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add status.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: update live status.json [skip ci]" && git push)
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: update status.json with @MSFT365Status replies"
+          git push
