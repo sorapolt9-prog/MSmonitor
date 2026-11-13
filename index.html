@@ -1,1623 +1,1158 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MSMonitor — Microsoft 365 Service Health & @MSFT365Status Operations Dashboard</title>
-    <!-- Load Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Configure Tailwind for Dark Mode & Enterprise Typography -->
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    colors: {
-                        slate: {
-                            850: '#151f32',
-                            950: '#0b1120',
-                        }
-                    }
-                }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MSMonitor — Microsoft 365 Service Health & @MSFT365Status Operations Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              850: '#161e2e',
+              950: '#0b0f19'
             }
+          }
         }
-    </script>
-    <!-- Load Google Fonts: Inter & JetBrains Mono (Zero other external asset dependencies) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(148, 163, 184, 0.3);
-            border-radius: 9999px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(148, 163, 184, 0.5);
-        }
-        @keyframes pulse-ring {
-            0% { transform: scale(0.85); opacity: 0.85; }
-            70% { transform: scale(1.75); opacity: 0; }
-            100% { transform: scale(1.75); opacity: 0; }
-        }
-        .pulse-dot::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: 9999px;
-            background-color: inherit;
-            animation: pulse-ring 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
-        }
-        @keyframes spin-slow {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        .animate-sync-spin {
-            animation: spin-slow 0.8s linear infinite;
-        }
-    </style>
+      }
+    };
+  </script>
+  <style>
+    @keyframes pulse-ring {
+      0% { transform: scale(0.85); opacity: 0.9; }
+      70% { transform: scale(1.6); opacity: 0; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+    .pulse-dot::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 9999px;
+      background-color: inherit;
+      animation: pulse-ring 1.8s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
 </head>
-<body class="bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200 min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen transition-colors duration-200 font-sans antialiased">
 
-    <!-- Top Navigation & Live Control Bar -->
-    <header class="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm">
-        <div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-3">
-            <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
-                
-                <!-- Brand & Live Data Source Indicator -->
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
-                            <!-- Inline SVG Microsoft Grid Logo -->
-                            <svg class="w-5 h-5" viewBox="0 0 21 21" fill="currentColor" aria-hidden="true">
-                                <rect x="1" y="1" width="9" height="9" rx="1"/>
-                                <rect x="11" y="1" width="9" height="9" rx="1"/>
-                                <rect x="1" y="11" width="9" height="9" rx="1"/>
-                                <rect x="11" y="11" width="9" height="9" rx="1"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">
-                                    MSMonitor
-                                </h1>
-                                <span class="hidden md:inline text-xs font-medium text-slate-500 dark:text-slate-400">
-                                    Microsoft 365 Service Health & @MSFT365Status Operations
-                                </span>
-                                <!-- Dynamic Data Source Badge -->
-                                <span id="dataSourceBadge" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">
-                                    <span class="relative flex h-2 w-2">
-                                        <span id="dataSourcePulse" class="pulse-dot relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                                    </span>
-                                    <span id="dataSourceText">Baseline / Simulation Mode</span>
-                                </span>
-                            </div>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-2 mt-0.5">
-                                <span>Last Sync: <span id="lastUpdatedTime" class="font-mono font-medium text-slate-700 dark:text-slate-300">--:--:--</span></span>
-                                <span class="text-slate-300 dark:text-slate-700">•</span>
-                                <span id="syncDetailText" class="text-[11px] text-slate-500 dark:text-slate-400">Checking live endpoints...</span>
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- Mobile Theme Toggle -->
-                    <button id="themeToggleMobile" class="xl:hidden p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition" title="Toggle Dark/Light Theme" aria-label="Toggle theme">
-                        <svg class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                        <svg class="w-4 h-4 block dark:hidden text-slate-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-                    </button>
-                </div>
-
-                <!-- Controls & Quick External Links -->
-                <div class="flex flex-wrap items-center gap-2">
-                    <!-- 60s Auto-Refresh Toggle + Countdown -->
-                    <div class="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/70">
-                        <label class="inline-flex items-center cursor-pointer gap-2">
-                            <input type="checkbox" id="autoRefreshToggle" class="sr-only peer" checked>
-                            <div class="relative w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
-                            <span class="text-xs font-medium text-slate-700 dark:text-slate-300">Auto-Sync</span>
-                        </label>
-                        <span id="countdownBadge" class="font-mono text-xs px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 min-w-[36px] text-center">60s</span>
-                    </div>
-
-                    <!-- Sync Now Button -->
-                    <button id="syncNowBtn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 transition shadow-sm" title="Sync status.json and live RSS fallbacks now">
-                        <svg id="syncIcon" class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                        <span>Sync Now</span>
-                    </button>
-
-                    <!-- Generate Employee Advisory CTA -->
-                    <button id="openAnnouncementModalBtn" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-600/25 transition" title="Generate staff outage communication">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
-                        <span>Generate Employee Advisory</span>
-                    </button>
-
-                    <div class="hidden 2xl:block h-5 w-px bg-slate-200 dark:bg-slate-700"></div>
-
-                    <!-- Official External Links -->
-                    <div class="flex items-center gap-1.5">
-                        <a href="https://admin.microsoft.com" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700/70 transition" title="Open Microsoft 365 Admin Center">
-                            <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                            <span class="hidden sm:inline">Admin Center</span>
-                        </a>
-                        <a href="https://status.cloud.microsoft" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700/70 transition" title="Open Public Cloud Status Portal">
-                            <svg class="w-3.5 h-3.5 text-sky-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
-                            <span class="hidden sm:inline">Cloud Status</span>
-                        </a>
-                        <a href="https://x.com/MSFT365Status" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium bg-slate-900 dark:bg-black text-white hover:bg-slate-800 border border-slate-700 transition" title="Open Official @MSFT365Status Feed on X">
-                            <svg class="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                            <span class="hidden sm:inline">@MSFT365Status</span>
-                        </a>
-                    </div>
-
-                    <!-- Desktop Theme Toggle -->
-                    <button id="themeToggleDesktop" class="hidden xl:inline-flex items-center justify-center w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition" title="Toggle Dark/Light Theme" aria-label="Toggle theme">
-                        <svg class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                        <svg class="w-4 h-4 block dark:hidden text-slate-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-                    </button>
-                </div>
-            </div>
+  <!-- Top Navigation & Live Sync Controls -->
+  <header class="sticky top-0 z-30 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-md">
+          M3
         </div>
-    </header>
-
-    <!-- Main Workspace -->
-    <main class="flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-
-        <!-- Dynamic Global Incident Summary Banner -->
-        <section id="globalBanner" class="rounded-2xl p-4 sm:p-5 border transition-all duration-300 shadow-sm">
-            <!-- Rendered dynamically via JS -->
-        </section>
-
-        <!-- 4 KPI Summary Cards -->
-        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <!-- Total Monitored Services -->
-            <div onclick="setStatusFilter('ALL')" class="cursor-pointer group rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-sm hover:border-blue-400 dark:hover:border-blue-500/60 transition" title="Show all monitored services">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Monitored Workloads</span>
-                    <div class="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                    </div>
-                </div>
-                <div class="mt-2 flex items-baseline gap-2">
-                    <span id="kpiTotal" class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">8</span>
-                    <span class="text-xs text-slate-500 dark:text-slate-400">core services</span>
-                </div>
-            </div>
-
-            <!-- Healthy Services -->
-            <div onclick="setStatusFilter('HEALTHY')" class="cursor-pointer group rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-sm hover:border-emerald-400 dark:hover:border-emerald-500/60 transition" title="Filter by Healthy services">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Healthy Services</span>
-                    <div class="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    </div>
-                </div>
-                <div class="mt-2 flex items-baseline gap-2">
-                    <span id="kpiHealthy" class="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">0</span>
-                    <span class="text-xs text-slate-500 dark:text-slate-400">operating normally</span>
-                </div>
-            </div>
-
-            <!-- Impacted Services -->
-            <div onclick="setStatusFilter('IMPACTED')" class="cursor-pointer group rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-sm hover:border-rose-400 dark:hover:border-rose-500/60 transition" title="Filter by Impacted services">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Impacted Services</span>
-                    <div class="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                    </div>
-                </div>
-                <div class="mt-2 flex items-baseline gap-2">
-                    <span id="kpiImpacted" class="text-2xl sm:text-3xl font-bold text-rose-600 dark:text-rose-400">0</span>
-                    <span class="text-xs text-slate-500 dark:text-slate-400">advisory / degraded</span>
-                </div>
-            </div>
-
-            <!-- Active Incident IDs -->
-            <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Active Incident IDs</span>
-                    <div class="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
-                    </div>
-                </div>
-                <div id="kpiIncidentIds" class="mt-2.5 flex flex-wrap items-center gap-1.5">
-                    <!-- Populated dynamically -->
-                </div>
-            </div>
-        </section>
-
-        <!-- Main Two-Column Operations Grid -->
-        <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-
-            <!-- Left/Main Column: Service Health Matrix (7 cols on xl) -->
-            <div class="xl:col-span-7 space-y-4">
-                
-                <!-- Filter & Search Controls -->
-                <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                            <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>
-                                Service Health Matrix
-                            </h2>
-                            <p class="text-xs text-slate-500 dark:text-slate-400">
-                                Click <span class="font-medium text-slate-700 dark:text-slate-300">Details</span> for Root Cause & Mitigation, or <span class="font-medium text-blue-500">Cycle Status</span> to test outage simulations.
-                            </p>
-                        </div>
-                        <button id="resetDemoBtn" class="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition" title="Reset simulated changes back to baseline/live telemetry">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
-                            <span>Reset Simulation</span>
-                        </button>
-                    </div>
-
-                    <div class="flex flex-col sm:flex-row gap-3">
-                        <!-- Search Input -->
-                        <div class="relative flex-1">
-                            <svg class="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                            <input type="text" id="searchInput" placeholder="Search service or Incident ID (e.g., EX1550543, MO1550821)..." class="w-full pl-9 pr-4 py-2 rounded-xl text-xs sm:text-sm bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition">
-                        </div>
-
-                        <!-- Status Filter Pills: All, Impacted Only, Healthy -->
-                        <div class="flex items-center gap-1.5 shrink-0" id="filterButtons">
-                            <button data-filter="ALL" class="filter-btn px-3 py-2 rounded-xl text-xs font-semibold transition bg-blue-600 text-white shadow-sm">
-                                All
-                            </button>
-                            <button data-filter="IMPACTED" class="filter-btn px-3 py-2 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">
-                                Impacted Only
-                            </button>
-                            <button data-filter="HEALTHY" class="filter-btn px-3 py-2 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">
-                                Healthy
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Services Grid -->
-                <div id="servicesGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                    <!-- Service Cards rendered dynamically -->
-                </div>
-
-                <!-- Empty Filter State -->
-                <div id="emptyServiceState" class="hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 text-center">
-                    <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-3">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
-                    </div>
-                    <h3 class="text-sm font-semibold text-slate-900 dark:text-white">No services match your current filter</h3>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Try clearing your search query or selecting the "All" filter pill.</p>
-                </div>
-            </div>
-
-            <!-- Right Column: @MSFT365Status & Cloud Status Timeline Feed (5 cols on xl) -->
-            <div class="xl:col-span-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden">
-                
-                <!-- Feed Header -->
-                <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-900">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-slate-950 dark:bg-black border border-slate-700 flex items-center justify-center text-white relative shrink-0">
-                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                            <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-white dark:border-slate-900 flex items-center justify-center text-white" title="Verified Official Stream">
-                                <svg class="w-2 h-2" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                            </span>
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-1.5">
-                                <h2 class="text-sm font-bold text-slate-900 dark:text-white">@MSFT365Status & Cloud Feed</h2>
-                            </div>
-                            <p class="text-[11px] text-slate-500 dark:text-slate-400">Live Sync Stream, Incident Chronology & Admin Log</p>
-                        </div>
-                    </div>
-                    <a href="https://x.com/MSFT365Status" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-900 dark:bg-slate-800 text-white hover:bg-slate-800 dark:hover:bg-slate-700 border border-slate-700 transition inline-flex items-center gap-1.5 shrink-0" title="Open @MSFT365Status on X">
-                        <span>View on X</span>
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                    </a>
-                </div>
-
-                <!-- Feed Filter Tabs -->
-                <div class="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/50 flex flex-wrap items-center gap-1.5">
-                    <button data-feed-filter="ALL" class="feed-tab px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-600 text-white transition">
-                        All Updates
-                    </button>
-                    <button data-feed-filter="LIVE" class="feed-tab px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800 transition">
-                        Live Synced
-                    </button>
-                    <button data-feed-filter="INCIDENT" class="feed-tab px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800 transition">
-                        Incident Log
-                    </button>
-                    <button data-feed-filter="ADMIN" class="feed-tab px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800 transition">
-                        Admin Notes
-                    </button>
-                </div>
-
-                <!-- Inline Add Admin Note Composer -->
-                <div class="p-3.5 bg-slate-50 dark:bg-slate-850/70 border-b border-slate-200 dark:border-slate-800">
-                    <form id="addFeedForm" class="space-y-2.5">
-                        <div class="flex items-center justify-between gap-2">
-                            <label for="newFeedText" class="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                                <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                                <span>Add Admin Note</span>
-                            </label>
-                            <select id="postTagSelect" class="text-[11px] font-mono rounded-lg px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500" title="Select incident tag">
-                                <option value="#AdminNote">#AdminNote</option>
-                                <option value="#EX1550543">#EX1550543</option>
-                                <option value="#MO1550821">#MO1550821</option>
-                                <option value="#Mitigation">#Mitigation</option>
-                            </select>
-                        </div>
-                        <textarea id="newFeedText" rows="2" placeholder="Log an internal investigation note, regional telemetry check, or helpdesk update..." class="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 resize-none"></textarea>
-                        <div class="flex items-center justify-between">
-                            <span class="text-[11px] text-slate-400">Persisted in browser localStorage</span>
-                            <button type="submit" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition inline-flex items-center gap-1.5 shadow-sm">
-                                <span>Post Note</span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Timeline Feed Container -->
-                <div id="feed-timeline" class="p-4 space-y-4 max-h-[620px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80">
-                    <!-- Feed items rendered dynamically -->
-                </div>
-            </div>
-
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-lg font-bold tracking-tight">MSMonitor</h1>
+            <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+              Operations Console
+            </span>
+          </div>
+          <!-- Live Sync Status Pill -->
+          <div class="flex items-center gap-2 mt-1">
+            <span id="sync-status-pill" class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+              <span id="sync-status-dot" class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
+              <span id="sync-status-text">Initializing feed sync...</span>
+            </span>
+          </div>
         </div>
-    </main>
+      </div>
 
-    <!-- Footer -->
-    <footer class="border-t border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/60 py-4 mt-8">
-        <div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <p>MSMonitor • Zero-Backend GitHub Pages IT Operations Dashboard</p>
-            <p class="flex items-center gap-3">
-                <span>Primary Feed: <code class="font-mono text-slate-700 dark:text-slate-300">./status.json</code></span>
-                <span>•</span>
-                <span>Tracked IDs: <strong class="font-mono text-slate-700 dark:text-slate-300">EX1550543</strong>, <strong class="font-mono text-slate-700 dark:text-slate-300">MO1550821</strong></span>
+      <!-- Quick Action Bar -->
+      <div class="flex flex-wrap items-center gap-2.5">
+        <button id="btn-sync-now" onclick="syncLiveData(true)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 transition cursor-pointer">
+          <svg id="sync-icon" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span id="sync-btn-label">Sync Now</span>
+        </button>
+
+        <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800">
+          <span>Auto-Sync:</span>
+          <span id="countdown-timer" class="font-mono font-bold text-sky-600 dark:text-sky-400">60s</span>
+        </div>
+
+        <button onclick="openAdvisoryModal()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition cursor-pointer">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+          </svg>
+          Generate Employee Advisory
+        </button>
+
+        <button onclick="toggleTheme()" title="Toggle Dark/Light Theme" class="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 transition cursor-pointer">
+          <svg id="theme-icon-sun" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <svg id="theme-icon-moon" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- External Portal Links Sub-bar -->
+    <div class="bg-slate-100/80 dark:bg-slate-950/60 border-t border-slate-200 dark:border-slate-800/80">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-400">
+        <div class="flex flex-wrap items-center gap-4">
+          <span class="font-medium text-slate-500 dark:text-slate-400">Official Portals:</span>
+          <a href="https://admin.microsoft.com/Adminportal/Home#/servicehealth" target="_blank" rel="noopener" class="hover:text-sky-600 dark:hover:text-sky-400 inline-flex items-center gap-1 font-medium">
+            M365 Admin Service Health <span aria-hidden="true">↗</span>
+          </a>
+          <a href="https://status.cloud.microsoft" target="_blank" rel="noopener" class="hover:text-sky-600 dark:hover:text-sky-400 inline-flex items-center gap-1 font-medium">
+            status.cloud.microsoft <span aria-hidden="true">↗</span>
+          </a>
+          <a href="https://x.com/MSFT365Status" target="_blank" rel="noopener" class="hover:text-sky-600 dark:hover:text-sky-400 inline-flex items-center gap-1 font-medium">
+            @MSFT365Status on X <span aria-hidden="true">↗</span>
+          </a>
+        </div>
+        <div class="flex items-center gap-3">
+          <span id="keyword-match-badge" class="hidden text-[11px] font-medium px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 border border-indigo-500/20">
+            Keyword Auto-Sync Active
+          </span>
+          <button onclick="resetSimulation()" class="text-xs text-slate-500 hover:text-rose-500 dark:text-slate-400 dark:hover:text-rose-400 underline cursor-pointer">
+            Reset Simulation & Overrides
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Global Status Banner -->
+    <section id="global-banner" class="rounded-2xl p-5 border transition-all duration-300 shadow-sm bg-rose-500/10 border-rose-500/30">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-start gap-3.5">
+          <div id="global-banner-dot" class="relative w-3.5 h-3.5 mt-1.5 rounded-full bg-rose-500 pulse-dot shrink-0"></div>
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 id="global-banner-title" class="text-base sm:text-lg font-bold text-rose-700 dark:text-rose-300">
+                Major Service Outage — Active Multi-Workload Impact
+              </h2>
+              <span id="global-incident-tags" class="text-xs font-mono px-2 py-0.5 rounded bg-rose-500/20 text-rose-800 dark:text-rose-200 border border-rose-500/30">
+                Tracking: EX1550543 • MO1550821
+              </span>
+            </div>
+            <p id="global-banner-desc" class="text-xs sm:text-sm text-slate-700 dark:text-slate-300 mt-1 leading-relaxed">
+              Microsoft engineering is mitigating elevated load following automated server health-check failures. Traffic optimization and server rebuilds are underway; intermittent latency persists.
             </p>
+          </div>
         </div>
-    </footer>
 
-    <!-- Modal 1: Service Deep-Dive Detail Modal -->
-    <div id="serviceDetailModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden">
-            <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div id="modalServiceIcon" class="w-10 h-10 rounded-xl flex items-center justify-center text-lg"></div>
-                    <div>
-                        <h3 id="modalServiceName" class="text-base font-bold text-slate-900 dark:text-white">Service Name</h3>
-                        <div class="flex flex-wrap items-center gap-2 mt-0.5">
-                            <span id="modalIncidentId" class="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">ID</span>
-                            <span id="modalStatusBadge" class="text-xs px-2.5 py-0.5 rounded-full font-medium">Status</span>
-                        </div>
-                    </div>
-                </div>
-                <button onclick="closeModal('serviceDetailModal')" class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="Close modal" aria-label="Close modal">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-            </div>
-            
-            <div class="p-5 space-y-4 max-h-[75vh] overflow-y-auto text-sm">
-                <!-- Simulation State Transition Switcher -->
-                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 space-y-2">
-                    <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                        Simulate Service Health State:
-                    </span>
-                    <div id="modalStatusButtons" class="flex flex-wrap gap-1.5">
-                        <!-- Status buttons injected by JS -->
-                    </div>
-                </div>
-
-                <!-- User Impact & Scope -->
-                <div class="space-y-1">
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">User Impact & Scope</h4>
-                    <p id="modalUserImpact" class="text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 leading-relaxed"></p>
-                </div>
-
-                <!-- Root Cause -->
-                <div class="space-y-1">
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Root Cause</h4>
-                    <p id="modalRootCause" class="text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 leading-relaxed"></p>
-                </div>
-
-                <!-- Current Mitigation -->
-                <div class="space-y-1">
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Current Mitigation</h4>
-                    <p id="modalMitigation" class="text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 leading-relaxed"></p>
-                </div>
-            </div>
-
-            <div class="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-end gap-2">
-                <button onclick="closeModal('serviceDetailModal')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700 transition">
-                    Close
-                </button>
-            </div>
+        <!-- KPI Counters -->
+        <div class="flex items-center gap-3 shrink-0">
+          <div class="px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-center min-w-[76px]">
+            <div id="kpi-outage" class="text-lg font-extrabold text-rose-600 dark:text-rose-400">0</div>
+            <div class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Outage</div>
+          </div>
+          <div class="px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-center min-w-[76px]">
+            <div id="kpi-degraded" class="text-lg font-extrabold text-amber-600 dark:text-amber-400">0</div>
+            <div class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Degraded</div>
+          </div>
+          <div class="px-3.5 py-2 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-center min-w-[76px]">
+            <div id="kpi-healthy" class="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">0</div>
+            <div class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Healthy</div>
+          </div>
         </div>
+      </div>
+    </section>
+
+    <!-- Two-Column Operations Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+      <!-- Left 7 Columns: Service Health Matrix -->
+      <div class="lg:col-span-7 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-bold">Core Service Health Matrix</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              Auto-scanned from live feed keywords or click status badge to simulate
+            </p>
+          </div>
+
+          <!-- Filter & Search -->
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="inline-flex rounded-lg p-0.5 bg-slate-200/80 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs">
+              <button onclick="setFilter('all')" id="filter-all" class="px-2.5 py-1 rounded-md font-semibold bg-white dark:bg-slate-700 shadow-xs cursor-pointer">All</button>
+              <button onclick="setFilter('impacted')" id="filter-impacted" class="px-2.5 py-1 rounded-md font-medium text-slate-600 dark:text-slate-300 cursor-pointer">Impacted</button>
+              <button onclick="setFilter('healthy')" id="filter-healthy" class="px-2.5 py-1 rounded-md font-medium text-slate-600 dark:text-slate-300 cursor-pointer">Healthy</button>
+            </div>
+            <input
+              id="service-search"
+              type="text"
+              oninput="renderServices()"
+              placeholder="Filter service or ID..."
+              class="px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500 w-40 sm:w-44"
+            />
+          </div>
+        </div>
+
+        <!-- Service Cards Grid -->
+        <div id="services-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+
+      <!-- Right 5 Columns: @MSFT365Status & Live Cloud Feed -->
+      <div class="lg:col-span-5 space-y-4">
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-full bg-slate-900 dark:bg-slate-800 text-white flex items-center justify-center font-bold text-xs border border-slate-700">
+                𝕏
+              </div>
+              <div>
+                <h3 class="text-sm font-bold leading-tight">@MSFT365Status & Cloud Feed</h3>
+                <p id="feed-subtitle" class="text-[11px] text-slate-500 dark:text-slate-400">
+                  Live feed & incident advisories
+                </p>
+              </div>
+            </div>
+            <span id="feed-source-tag" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
+              Baseline
+            </span>
+          </div>
+
+          <!-- Admin Note Input -->
+          <div class="p-3 bg-slate-50 dark:bg-slate-950/50 border-b border-slate-200 dark:border-slate-800">
+            <form onsubmit="addAdminNote(event)" class="flex gap-2">
+              <input
+                id="admin-note-input"
+                type="text"
+                placeholder="Log internal IT incident note..."
+                class="flex-1 px-3 py-1.5 text-xs rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+              />
+              <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 dark:bg-sky-600 dark:hover:bg-sky-500 text-white transition cursor-pointer">
+                Post Note
+              </button>
+            </form>
+          </div>
+
+          <!-- Feed Timeline List -->
+          <div id="feed-timeline" class="p-4 space-y-3.5 max-h-[540px] overflow-y-auto">
+            <!-- Populated dynamically by JS -->
+          </div>
+        </div>
+      </div>
     </div>
+  </main>
 
-    <!-- Modal 2: Employee Advisory Generator Modal -->
-    <div id="announcementModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden">
-            <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-blue-600/15 text-blue-500 flex items-center justify-center">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-bold text-slate-900 dark:text-white">Employee Advisory Generator</h3>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">Compiled from active service statuses, incident IDs, and mitigation guidance</p>
-                    </div>
-                </div>
-                <button onclick="closeModal('announcementModal')" class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition" title="Close modal" aria-label="Close modal">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-            </div>
-
-            <div class="p-5 space-y-4">
-                <!-- Format Tabs & Phishing Reminder Toggle -->
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div class="inline-flex flex-wrap rounded-xl p-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 gap-1">
-                        <button id="formatTabTEAMS" onclick="switchAnnouncementFormat('TEAMS')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-sm transition">
-                            Microsoft Teams / Slack Alert
-                        </button>
-                        <button id="formatTabEMAIL" onclick="switchAnnouncementFormat('EMAIL')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">
-                            All-Staff Email Notice
-                        </button>
-                        <button id="formatTabEXEC" onclick="switchAnnouncementFormat('EXEC')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition">
-                            Executive IT Summary
-                        </button>
-                    </div>
-
-                    <label class="inline-flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-                        <input type="checkbox" id="includePhishingWarning" checked onchange="generateAnnouncementText()" class="rounded text-blue-600 focus:ring-blue-500">
-                        <span>Include Phishing Reminder</span>
-                    </label>
-                </div>
-
-                <!-- Live Preview Box -->
-                <div>
-                    <textarea id="announcementOutput" rows="13" class="w-full p-4 rounded-xl text-xs sm:text-sm font-sans leading-relaxed bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/40"></textarea>
-                </div>
-            </div>
-
-            <div class="px-5 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span class="text-xs text-slate-500 dark:text-slate-400">Ready to paste into Teams, Slack, or Email</span>
-                <div class="flex items-center gap-2 self-end sm:self-auto">
-                    <button onclick="closeModal('announcementModal')" class="px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 transition">
-                        Close
-                    </button>
-                    <button id="copyAnnouncementBtn" onclick="copyAnnouncementToClipboard()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm inline-flex items-center gap-1.5 transition">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                        <span>Copy to Clipboard</span>
-                    </button>
-                </div>
-            </div>
+  <!-- Service Incident Details Modal -->
+  <div id="details-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <span id="modal-incident-id" class="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+            EX1550543
+          </span>
+          <h3 id="modal-service-name" class="text-lg font-bold mt-1.5">Exchange Online</h3>
         </div>
-    </div>
+        <button onclick="closeDetailsModal()" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer">
+          ✕
+        </button>
+      </div>
 
-    <!-- Confirmation Toast Notification -->
-    <div id="toastNotification" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-300">
-        <div class="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium shadow-xl border border-slate-700">
-            <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-            <span id="toastMessage">Action completed</span>
+      <div class="space-y-3 text-xs sm:text-sm">
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
+          <div class="font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider mb-1">User Impact & Scope</div>
+          <p id="modal-impact" class="text-slate-800 dark:text-slate-200 leading-relaxed"></p>
         </div>
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
+          <div class="font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider mb-1">Root Cause Telemetry</div>
+          <p id="modal-rootcause" class="text-slate-800 dark:text-slate-200 leading-relaxed"></p>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
+          <div class="font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider mb-1">Current Mitigation</div>
+          <p id="modal-mitigation" class="text-slate-800 dark:text-slate-200 leading-relaxed"></p>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeDetailsModal()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 transition cursor-pointer">
+          Close
+        </button>
+      </div>
     </div>
-
-    <!-- Application Logic -->
-    <script>
-        // ==========================================
-        // 1. CONSTANTS, INLINE ICONS & BASELINE DATASET (Nov 12–13, 2026)
-        // ==========================================
-        const STORAGE_KEYS = {
-            SERVICES: 'msmonitor_services_v2',
-            NOTES: 'msmonitor_admin_notes_v2',
-            THEME: 'msmonitor_theme_v2'
-        };
-
-        const STATUS_ORDER = [
-            'Healthy',
-            'Advisory',
-            'Degraded',
-            'Interruption',
-            'Extended Recovery'
-        ];
-
-        const STATUS_CONFIG = {
-            'Interruption': {
-                severity: 'MAJOR',
-                label: 'Interruption',
-                badgeClass: 'bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-300 border border-rose-200 dark:border-rose-500/30',
-                dotClass: 'bg-rose-500',
-                borderClass: 'border-l-4 border-l-rose-500'
-            },
-            'Degraded': {
-                severity: 'DEGRADED',
-                label: 'Degraded',
-                badgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30',
-                dotClass: 'bg-amber-500',
-                borderClass: 'border-l-4 border-l-amber-500'
-            },
-            'Extended Recovery': {
-                severity: 'DEGRADED',
-                label: 'Extended Recovery',
-                badgeClass: 'bg-sky-100 text-sky-800 dark:bg-sky-500/20 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30',
-                dotClass: 'bg-sky-500',
-                borderClass: 'border-l-4 border-l-sky-500'
-            },
-            'Advisory': {
-                severity: 'DEGRADED',
-                label: 'Advisory',
-                badgeClass: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-500/30',
-                dotClass: 'bg-yellow-500',
-                borderClass: 'border-l-4 border-l-yellow-500'
-            },
-            'Healthy': {
-                severity: 'HEALTHY',
-                label: 'Healthy',
-                badgeClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30',
-                dotClass: 'bg-emerald-500',
-                borderClass: 'border-l-4 border-l-emerald-500'
-            }
-        };
-
-        const SERVICE_SVGS = {
-            exchange: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>`,
-            sharepoint: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>`,
-            teams: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>`,
-            onedrive: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>`,
-            copilot: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>`,
-            entraid: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>`,
-            powerplatform: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>`,
-            defender: `<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>`
-        };
-
-        const SHARED_ROOT_CAUSE = 'Automated health checks unexpectedly marked a subset of infrastructure nodes unhealthy, routing concentrated traffic load onto remaining servers; confirmed non-malicious.';
-        const SHARED_MITIGATION = 'Traffic optimization, selective traffic limiting, and server configuration rollbacks/rebuilds while halting non-essential service deployments.';
-
-        const INITIAL_SERVICES = [
-            {
-                id: 'exchange',
-                name: 'Exchange Online',
-                subtitle: 'Outlook Web, Desktop & Mail Flow',
-                iconBg: 'bg-sky-500/15 text-sky-500',
-                status: 'Degraded',
-                incidentId: 'EX1550543',
-                affectedScope: 'Global — Users attempting to access Outlook on the web or desktop clients, as well as inbound/outbound mail flow.',
-                userImpact: 'Intermittent delays sending/receiving emails and Outlook web/desktop timeouts across multiple regions.',
-                rootCause: SHARED_ROOT_CAUSE,
-                mitigation: SHARED_MITIGATION
-            },
-            {
-                id: 'sharepoint',
-                name: 'SharePoint Online',
-                subtitle: 'Sites, Lists & Document Libraries',
-                iconBg: 'bg-teal-500/15 text-teal-400',
-                status: 'Degraded',
-                incidentId: 'MO1550821',
-                affectedScope: 'Global — Users accessing SharePoint sites, modern lists, and document libraries.',
-                userImpact: 'Slow site loading, intermittent HTTP 503 errors, and list/library access delays during peak traffic intervals.',
-                rootCause: SHARED_ROOT_CAUSE,
-                mitigation: SHARED_MITIGATION
-            },
-            {
-                id: 'teams',
-                name: 'Microsoft Teams',
-                subtitle: 'Chat, Presence & Meetings',
-                iconBg: 'bg-indigo-500/15 text-indigo-400',
-                status: 'Degraded',
-                incidentId: 'MO1550821',
-                affectedScope: 'Global — Users sending channel/chat messages, updating presence status, or joining scheduled meetings.',
-                userImpact: 'Message delivery delays, presence sync lag, and meeting join retries due to upstream Exchange/SharePoint load.',
-                rootCause: SHARED_ROOT_CAUSE,
-                mitigation: SHARED_MITIGATION
-            },
-            {
-                id: 'onedrive',
-                name: 'OneDrive for Business',
-                subtitle: 'Cloud Storage & Sync Client',
-                iconBg: 'bg-blue-500/15 text-blue-400',
-                status: 'Advisory',
-                incidentId: 'MO1550821',
-                affectedScope: 'Global — Users syncing local folders via OneDrive desktop client or previewing files in browser.',
-                userImpact: 'Intermittent sync delays and file preview timeouts; core file storage integrity remains unaffected.',
-                rootCause: SHARED_ROOT_CAUSE,
-                mitigation: SHARED_MITIGATION
-            },
-            {
-                id: 'copilot',
-                name: 'Microsoft 365 Copilot',
-                subtitle: 'AI Assistant & Graph Grounding',
-                iconBg: 'bg-purple-500/15 text-purple-400',
-                status: 'Degraded',
-                incidentId: 'MO1550821',
-                affectedScope: 'Global — Users invoking Copilot prompts grounded in tenant emails, chats, or SharePoint documents.',
-                userImpact: 'Intermittent prompt failures and slow response times when retrieving Microsoft Graph context.',
-                rootCause: SHARED_ROOT_CAUSE,
-                mitigation: SHARED_MITIGATION
-            },
-            {
-                id: 'entraid',
-                name: 'Microsoft Entra ID',
-                subtitle: 'Identity, SSO & Conditional Access',
-                iconBg: 'bg-emerald-500/15 text-emerald-400',
-                status: 'Healthy',
-                incidentId: 'None',
-                affectedScope: 'Global — All tenant sign-in, Single Sign-On (SSO), and Multi-Factor Authentication (MFA) flows.',
-                userImpact: 'Core authentication services operating normally with no service degradation.',
-                rootCause: 'No active incident affecting Microsoft Entra ID.',
-                mitigation: 'All authentication endpoints are healthy and operating within normal SLA parameters.'
-            },
-            {
-                id: 'powerplatform',
-                name: 'Power Platform / Power Automate',
-                subtitle: 'Cloud Flows & M365 Connectors',
-                iconBg: 'bg-cyan-500/15 text-cyan-400',
-                status: 'Degraded',
-                incidentId: 'MO1550821',
-                affectedScope: 'Global — Automated cloud flows utilizing SharePoint Online and Office 365 Outlook connectors.',
-                userImpact: 'Delayed cloud flow triggers and SharePoint connector throttling; queued runs automatically retry as capacity stabilizes.',
-                rootCause: SHARED_ROOT_CAUSE,
-                mitigation: SHARED_MITIGATION
-            },
-            {
-                id: 'defender',
-                name: 'Microsoft Defender XDR',
-                subtitle: 'Security Portal & Alert Queues',
-                iconBg: 'bg-amber-500/15 text-amber-400',
-                status: 'Advisory',
-                incidentId: 'MO1550821',
-                affectedScope: 'Security Operations — Admins viewing Defender portal dashboards and Defender for Office 365 telemetry.',
-                userImpact: 'Portal loading delays and alert queue latency; automated threat protection and mail filtering remain active.',
-                rootCause: SHARED_ROOT_CAUSE,
-                mitigation: SHARED_MITIGATION
-            }
-        ];
-
-        const BASELINE_FEED_POSTS = [
-            {
-                id: 'base-5',
-                timestamp: 'Nov 13, 2026 • 18:30 UTC+8',
-                tag: '#MO1550821',
-                category: 'INCIDENT',
-                author: '@MSFT365Status',
-                content: 'Partial recovery observed: Traffic optimization and selective traffic limiting have improved service availability across several regions. We are continuing server configuration rollbacks/rebuilds to address remaining elevated load. Follow MO1550821 & EX1550543 in the Admin Center.',
-                url: 'https://x.com/MSFT365Status'
-            },
-            {
-                id: 'base-4',
-                timestamp: 'Nov 13, 2026 • 14:15 UTC+8',
-                tag: '#EX1550543',
-                category: 'INCIDENT',
-                author: '@MSFT365Status',
-                content: 'Server rebuild validation: We are validating server rebuilds using a known-good prior configuration after observing some restarted nodes re-entering an unhealthy state under production traffic. All non-essential deployments remain paused.',
-                url: 'https://x.com/MSFT365Status'
-            },
-            {
-                id: 'base-3',
-                timestamp: 'Nov 13, 2026 • 09:45 UTC+8',
-                tag: '#MO1550821',
-                category: 'INCIDENT',
-                author: '@MSFT365Status',
-                content: 'Traffic limiting applied: We have implemented selective traffic limiting on impacted infrastructure pools to relieve concentrated load and stabilize Exchange Online, SharePoint Online, and Microsoft Teams.',
-                url: 'https://x.com/MSFT365Status'
-            },
-            {
-                id: 'base-2',
-                timestamp: 'Nov 13, 2026 • 03:20 UTC+8',
-                tag: '#EX1550543',
-                category: 'INCIDENT',
-                author: '@MSFT365Status',
-                content: 'Root cause identified: Automated health checks unexpectedly marked a subset of infrastructure nodes unhealthy, routing concentrated traffic load onto remaining servers. We have confirmed this issue is non-malicious.',
-                url: 'https://x.com/MSFT365Status'
-            },
-            {
-                id: 'base-1',
-                timestamp: 'Nov 12, 2026 • 21:50 UTC+8',
-                tag: '#MO1550821',
-                category: 'INCIDENT',
-                author: '@MSFT365Status',
-                content: 'Investigation: We are investigating an issue impacting access to multiple Microsoft 365 services including Exchange Online, SharePoint Online, and Microsoft Teams. If Admin Center access is degraded, check status.cloud.microsoft for updates.',
-                url: 'https://x.com/MSFT365Status'
-            }
-        ];
-
-        const RSS_FALLBACK_SOURCES = [
-            {
-                name: '@MSFT365Status (RSS Mirror)',
-                rssUrl: 'https://rsshub.app/twitter/user/MSFT365Status'
-            },
-            {
-                name: 'Microsoft 365 Cloud Status',
-                rssUrl: 'https://status.cloud.microsoft/api/feed/mac'
-            }
-        ];
-
-        // ==========================================
-        // 2. APPLICATION STATE & STORAGE
-        // ==========================================
-        let services = loadFromStorage(STORAGE_KEYS.SERVICES, INITIAL_SERVICES);
-        let adminNotes = loadFromStorage(STORAGE_KEYS.NOTES, []);
-        let liveSyncedPosts = [];
-        let dataSourceMode = 'BASELINE'; // 'STATUS_JSON' | 'RSS_BRIDGE' | 'BASELINE'
-        let dataSourceDetail = 'Resilient baseline dataset (Nov 12–13, 2026)';
-        let currentFilter = 'ALL'; // 'ALL' | 'IMPACTED' | 'HEALTHY'
-        let currentFeedFilter = 'ALL'; // 'ALL' | 'LIVE' | 'INCIDENT' | 'ADMIN'
-        let searchQuery = '';
-        let selectedServiceId = null;
-        let currentAnnouncementFormat = 'TEAMS';
-        let countdownSeconds = 60;
-        let autoRefreshInterval = null;
-
-        function loadFromStorage(key, fallback) {
-            try {
-                const raw = localStorage.getItem(key);
-                if (!raw) return JSON.parse(JSON.stringify(fallback));
-                return JSON.parse(raw);
-            } catch (e) {
-                return JSON.parse(JSON.stringify(fallback));
-            }
-        }
-
-        function saveStateToStorage() {
-            try {
-                localStorage.setItem(STORAGE_KEYS.SERVICES, JSON.stringify(services));
-                localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(adminNotes));
-            } catch (e) {
-                // Ignore storage quota errors
-            }
-        }
-
-        // ==========================================
-        // 3. ZERO-BACKEND MULTI-TIER LIVE SYNC ENGINE
-        // ==========================================
-        function normalizeServiceStatus(rawStatus) {
-            if (!rawStatus) return null;
-            const s = String(rawStatus).trim().toLowerCase();
-            if (s.includes('healthy') || s.includes('restored') || s.includes('operational')) return 'Healthy';
-            if (s.includes('interruption') || s.includes('outage')) return 'Interruption';
-            if (s.includes('degrad')) return 'Degraded';
-            if (s.includes('advisory')) return 'Advisory';
-            if (s.includes('recovery')) return 'Extended Recovery';
-            return null;
-        }
-
-        function applyExternalServiceOverrides(overrides) {
-            if (!overrides) return;
-            // Supports either an array [{ id, status, incidentId, userImpact }] or an object map { exchange: 'Healthy' }
-            if (Array.isArray(overrides)) {
-                overrides.forEach(item => {
-                    const target = services.find(s => s.id === item.id || s.name.toLowerCase() === String(item.name || '').toLowerCase());
-                    const normalized = normalizeServiceStatus(item.status);
-                    if (target && normalized) {
-                        target.status = normalized;
-                        if (item.incidentId !== undefined) target.incidentId = item.incidentId;
-                        if (item.userImpact) target.userImpact = item.userImpact;
-                    }
-                });
-            } else if (typeof overrides === 'object') {
-                Object.entries(overrides).forEach(([key, val]) => {
-                    const target = services.find(s => s.id === key.toLowerCase());
-                    const normalized = normalizeServiceStatus(typeof val === 'object' ? val.status : val);
-                    if (target && normalized) {
-                        target.status = normalized;
-                        if (typeof val === 'object' && val.incidentId !== undefined) target.incidentId = val.incidentId;
-                        if (typeof val === 'object' && val.userImpact) target.userImpact = val.userImpact;
-                    }
-                });
-            }
-        }
-
-        async function fetchWithTimeout(url, timeoutMs = 4500) {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), timeoutMs);
-            try {
-                const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-                clearTimeout(timer);
-                return response;
-            } catch (err) {
-                clearTimeout(timer);
-                throw err;
-            }
-        }
-
-        async function syncLiveTelemetry(isManual = false) {
-            const syncIcon = document.getElementById('syncIcon');
-            if (syncIcon) syncIcon.classList.add('animate-sync-spin');
-
-            let syncedSuccessfully = false;
-
-            // TIER 1: Primary Live Source — ./status.json (generated by GitHub Actions in same origin)
-            try {
-                const res = await fetchWithTimeout(`./status.json?t=${Date.now()}`, 3500);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && (Array.isArray(data.items) || data.services)) {
-                        if (data.services) {
-                            applyExternalServiceOverrides(data.services);
-                        }
-                        if (Array.isArray(data.items) && data.items.length > 0) {
-                            liveSyncedPosts = data.items.slice(0, 12).map((item, idx) => ({
-                                id: `gh-live-${idx}-${Date.now()}`,
-                                timestamp: item.pubDate ? new Date(item.pubDate).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : (data.updatedAt || 'Live Sync'),
-                                tag: item.tag || '#LiveStatus',
-                                category: 'LIVE',
-                                author: item.author || 'Microsoft 365 Cloud Status',
-                                content: String(item.description || item.title || '').replace(/<[^>]*>?/gm, '').trim(),
-                                url: item.link || 'https://status.cloud.microsoft'
-                            }));
-                        }
-                        dataSourceMode = 'STATUS_JSON';
-                        const repoUpdated = data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString('en-US', { hour12: false }) : 'Now';
-                        dataSourceDetail = `Synced via ./status.json (Repo timestamp: ${repoUpdated})`;
-                        syncedSuccessfully = true;
-                    }
-                }
-            } catch (err) {
-                // Fall through to Tier 2 RSS-to-JSON bridge
-            }
-
-            // TIER 2: Secondary Fallback Live Source — Public RSS-to-JSON Bridges
-            if (!syncedSuccessfully) {
-                for (const source of RSS_FALLBACK_SOURCES) {
-                    try {
-                        const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(source.rssUrl)}`;
-                        const res = await fetchWithTimeout(proxyUrl, 4500);
-                        if (!res.ok) continue;
-
-                        const data = await res.json();
-                        if (data.status === 'ok' && Array.isArray(data.items) && data.items.length > 0) {
-                            liveSyncedPosts = data.items.slice(0, 10).map((item, idx) => ({
-                                id: `rss-live-${idx}-${Date.now()}`,
-                                timestamp: item.pubDate ? new Date(item.pubDate).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'Live RSS',
-                                tag: '#LiveFeed',
-                                category: 'LIVE',
-                                author: source.name,
-                                content: String(item.description || item.title || '').replace(/<[^>]*>?/gm, '').trim(),
-                                url: item.link || 'https://x.com/MSFT365Status'
-                            }));
-                            dataSourceMode = 'RSS_BRIDGE';
-                            dataSourceDetail = `Connected via RSS-to-JSON Bridge (${source.name})`;
-                            syncedSuccessfully = true;
-                            break;
-                        }
-                    } catch (err) {
-                        // Try next RSS source or fall back to resilient baseline
-                    }
-                }
-            }
-
-            // TIER 3: Local Resilient Baseline
-            if (!syncedSuccessfully) {
-                dataSourceMode = 'BASELINE';
-                dataSourceDetail = 'Live endpoints unavailable/rate-limited • Using Nov 12–13, 2026 baseline';
-            }
-
-            if (syncIcon) {
-                setTimeout(() => syncIcon.classList.remove('animate-sync-spin'), 350);
-            }
-
-            countdownSeconds = 60;
-            document.getElementById('countdownBadge').textContent = `${countdownSeconds}s`;
-            refreshAllUI();
-
-            if (isManual) {
-                const modeLabels = {
-                    'STATUS_JSON': 'Synced live telemetry from ./status.json',
-                    'RSS_BRIDGE': 'Synced live updates from RSS Bridge',
-                    'BASELINE': 'Live endpoints unreachable — retaining resilient baseline'
-                };
-                showToast(modeLabels[dataSourceMode]);
-            }
-        }
-
-        // ==========================================
-        // 4. CORE RENDER FUNCTIONS
-        // ==========================================
-        function updateHeaderTelemetry() {
-            const now = new Date();
-            document.getElementById('lastUpdatedTime').textContent = now.toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
-
-            const badge = document.getElementById('dataSourceBadge');
-            const pulse = document.getElementById('dataSourcePulse');
-            const text = document.getElementById('dataSourceText');
-            const detail = document.getElementById('syncDetailText');
-
-            if (dataSourceMode === 'STATUS_JSON') {
-                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30';
-                pulse.className = 'pulse-dot relative inline-flex rounded-full h-2 w-2 bg-emerald-500';
-                text.textContent = 'Live: status.json';
-            } else if (dataSourceMode === 'RSS_BRIDGE') {
-                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30';
-                pulse.className = 'pulse-dot relative inline-flex rounded-full h-2 w-2 bg-sky-500';
-                text.textContent = 'Live: RSS Bridge';
-            } else {
-                badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30';
-                pulse.className = 'pulse-dot relative inline-flex rounded-full h-2 w-2 bg-amber-500';
-                text.textContent = 'Baseline / Simulation Mode';
-            }
-            detail.textContent = dataSourceDetail;
-        }
-
-        function getActiveIncidentIds() {
-            const ids = new Set();
-            services.forEach(s => {
-                if (s.status !== 'Healthy' && s.incidentId && s.incidentId !== 'None') {
-                    ids.add(s.incidentId);
-                }
-            });
-            return Array.from(ids);
-        }
-
-        function renderGlobalBanner() {
-            const banner = document.getElementById('globalBanner');
-            const majorCount = services.filter(s => STATUS_CONFIG[s.status].severity === 'MAJOR').length;
-            const degradedCount = services.filter(s => STATUS_CONFIG[s.status].severity === 'DEGRADED').length;
-            const activeIds = getActiveIncidentIds();
-
-            if (majorCount > 0) {
-                banner.className = 'rounded-2xl p-4 sm:p-5 border transition-all duration-300 shadow-sm bg-rose-50/90 dark:bg-rose-950/30 border-rose-200 dark:border-rose-500/30';
-                banner.innerHTML = `
-                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div class="flex items-start gap-3.5">
-                            <div class="w-11 h-11 rounded-2xl bg-rose-500/15 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 mt-0.5">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                            </div>
-                            <div>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-600 text-white uppercase tracking-wide">Major Service Outage</span>
-                                    <h2 class="text-base sm:text-lg font-bold text-rose-950 dark:text-rose-100">Critical Interruption Affecting Core Microsoft 365 Services</h2>
-                                </div>
-                                <p class="text-xs sm:text-sm text-rose-800/90 dark:text-rose-200/80 mt-1 leading-relaxed">
-                                    <strong>${majorCount}</strong> service(s) experiencing full interruption and <strong>${degradedCount}</strong> experiencing degradation/advisory. Emergency traffic rerouting and server rebuilds are underway.
-                                </p>
-                            </div>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-2 shrink-0">
-                            ${activeIds.map(id => `
-                                <span class="font-mono text-xs px-3 py-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-500/30 font-semibold">
-                                    ${id}
-                                </span>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            } else if (degradedCount > 0) {
-                banner.className = 'rounded-2xl p-4 sm:p-5 border transition-all duration-300 shadow-sm bg-amber-50/90 dark:bg-amber-950/30 border-amber-200 dark:border-amber-500/30';
-                banner.innerHTML = `
-                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div class="flex items-start gap-3.5">
-                            <div class="w-11 h-11 rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            </div>
-                            <div>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500 text-slate-950 uppercase tracking-wide">Service Degradation</span>
-                                    <h2 class="text-base sm:text-lg font-bold text-amber-950 dark:text-amber-100">Active Global Incident — Intermittent Latency Across ${degradedCount} Workloads</h2>
-                                </div>
-                                <p class="text-xs sm:text-sm text-amber-800/90 dark:text-amber-200/80 mt-1 leading-relaxed">
-                                    Microsoft engineering is applying traffic optimization and server configuration rebuilds (confirmed non-malicious). Core Entra ID authentication remains Healthy.
-                                </p>
-                            </div>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-2 shrink-0">
-                            ${activeIds.map(id => `
-                                <span class="font-mono text-xs px-3 py-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 font-semibold">
-                                    ${id}
-                                </span>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            } else {
-                banner.className = 'rounded-2xl p-4 sm:p-5 border transition-all duration-300 shadow-sm bg-emerald-50/90 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-500/30';
-                banner.innerHTML = `
-                    <div class="flex items-center gap-3.5">
-                        <div class="w-11 h-11 rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        </div>
-                        <div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-600 text-white uppercase tracking-wide">Healthy</span>
-                                <h2 class="text-base sm:text-lg font-bold text-emerald-950 dark:text-emerald-100">All Monitored Microsoft 365 Services Are Operational</h2>
-                            </div>
-                            <p class="text-xs sm:text-sm text-emerald-800/90 dark:text-emerald-200/80 mt-0.5">
-                                No active service degradations or advisories impacting tenant workloads at this time.
-                            </p>
-                        </div>
-                    </div>
-                `;
-            }
-        }
-
-        function renderKPIs() {
-            const total = services.length;
-            const healthy = services.filter(s => s.status === 'Healthy').length;
-            const impacted = services.filter(s => s.status !== 'Healthy').length;
-            const activeIds = getActiveIncidentIds();
-
-            document.getElementById('kpiTotal').textContent = total;
-            document.getElementById('kpiHealthy').textContent = healthy;
-            document.getElementById('kpiImpacted').textContent = impacted;
-
-            const incidentContainer = document.getElementById('kpiIncidentIds');
-            if (activeIds.length > 0) {
-                incidentContainer.innerHTML = activeIds.map(id => `
-                    <span class="font-mono text-xs sm:text-sm font-bold px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30">
-                        ${id}
-                    </span>
-                `).join('');
-            } else {
-                incidentContainer.innerHTML = `
-                    <span class="font-mono text-xs sm:text-sm font-semibold px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-                        0 Active Incidents
-                    </span>
-                `;
-            }
-        }
-
-        function renderServices() {
-            const grid = document.getElementById('servicesGrid');
-            const emptyState = document.getElementById('emptyServiceState');
-
-            const filtered = services.filter(service => {
-                const matchesFilter =
-                    currentFilter === 'ALL' ||
-                    (currentFilter === 'HEALTHY' && service.status === 'Healthy') ||
-                    (currentFilter === 'IMPACTED' && service.status !== 'Healthy');
-
-                const q = searchQuery.toLowerCase().trim();
-                const matchesSearch = !q ||
-                    service.name.toLowerCase().includes(q) ||
-                    service.subtitle.toLowerCase().includes(q) ||
-                    service.incidentId.toLowerCase().includes(q) ||
-                    service.status.toLowerCase().includes(q);
-
-                return matchesFilter && matchesSearch;
-            });
-
-            if (filtered.length === 0) {
-                grid.innerHTML = '';
-                emptyState.classList.remove('hidden');
-                return;
-            }
-
-            emptyState.classList.add('hidden');
-            grid.innerHTML = filtered.map(service => {
-                const cfg = STATUS_CONFIG[service.status];
-                return `
-                    <div onclick="openServiceDetail('${service.id}')" class="group cursor-pointer rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 ${cfg.borderClass} p-4 shadow-sm hover:shadow-md hover:border-blue-400/60 dark:hover:border-blue-500/50 transition-all flex flex-col justify-between gap-3">
-                        <div>
-                            <div class="flex items-start justify-between gap-2">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-xl ${service.iconBg} flex items-center justify-center shrink-0">
-                                        ${SERVICE_SVGS[service.id]}
-                                    </div>
-                                    <div>
-                                        <h3 class="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">
-                                            ${service.name}
-                                        </h3>
-                                        <p class="text-[11px] text-slate-500 dark:text-slate-400">${service.subtitle}</p>
-                                    </div>
-                                </div>
-                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold shrink-0 ${cfg.badgeClass}">
-                                    <span class="w-1.5 h-1.5 rounded-full ${cfg.dotClass}"></span>
-                                    ${cfg.label}
-                                </span>
-                            </div>
-
-                            <p class="mt-3 text-xs text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
-                                ${service.userImpact}
-                            </p>
-                        </div>
-
-                        <div class="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-slate-400">Incident:</span>
-                                <span class="font-mono font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                                    ${service.incidentId}
-                                </span>
-                            </div>
-
-                            <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
-                                <button onclick="cycleServiceStatus('${service.id}')" class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-300 font-medium transition inline-flex items-center gap-1" title="Cycle simulated status">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                                    <span>Cycle Status</span>
-                                </button>
-                                <button onclick="openServiceDetail('${service.id}')" class="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 font-medium transition">
-                                    Details
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function escapeHTML(str) {
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        }
-
-        function renderFeedTimeline() {
-            const container = document.getElementById('feed-timeline');
-            // Merge Admin Notes (top) + Live Synced Posts (if any) + Chronological Incident Baseline
-            const combinedFeed = [
-                ...adminNotes,
-                ...liveSyncedPosts,
-                ...BASELINE_FEED_POSTS
-            ];
-
-            const filtered = combinedFeed.filter(post => {
-                if (currentFeedFilter === 'ALL') return true;
-                return post.category === currentFeedFilter;
-            });
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="py-8 text-center text-xs text-slate-500 dark:text-slate-400">
-                        No updates in this feed category yet.
-                    </div>
-                `;
-                return;
-            }
-
-            container.innerHTML = filtered.map((post, index) => {
-                const isAdmin = post.category === 'ADMIN';
-                const isLive = post.category === 'LIVE';
-                const avatarStyle = isAdmin
-                    ? 'bg-blue-600 text-white'
-                    : isLive
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-slate-900 dark:bg-black text-white border border-slate-700';
-
-                const badgeHtml = isLive
-                    ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">Live Sync</span>'
-                    : isAdmin
-                        ? '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">Admin Note</span>'
-                        : '';
-
-                return `
-                    <article class="${index > 0 ? 'pt-4' : ''}">
-                        <div class="flex items-start gap-3">
-                            <div class="w-8 h-8 rounded-full ${avatarStyle} flex items-center justify-center shrink-0 text-xs font-bold mt-0.5">
-                                ${isAdmin ? 'IT' : isLive ? 'LIVE' : 'X'}
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex flex-wrap items-center justify-between gap-1">
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="text-xs font-bold text-slate-900 dark:text-white">${escapeHTML(post.author)}</span>
-                                        ${badgeHtml}
-                                    </div>
-                                    <span class="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold">
-                                        ${escapeHTML(post.tag)}
-                                    </span>
-                                </div>
-                                <p class="text-[11px] text-slate-400 mt-0.5">${escapeHTML(post.timestamp)}</p>
-                                <p class="mt-2 text-xs text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line">
-                                    ${escapeHTML(post.content)}
-                                </p>
-                                <div class="mt-2 flex items-center justify-between">
-                                    <a href="${escapeHTML(post.url)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:underline">
-                                        <span>Verify Source</span>
-                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                                    </a>
-                                    ${isAdmin ? `<button onclick="deleteAdminNote('${post.id}')" class="text-[11px] text-rose-500 hover:underline">Remove Note</button>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-                `;
-            }).join('');
-        }
-
-        function refreshAllUI() {
-            updateHeaderTelemetry();
-            renderGlobalBanner();
-            renderKPIs();
-            renderServices();
-            renderFeedTimeline();
-        }
-
-        // ==========================================
-        // 5. INTERACTIVE HANDLERS & SIMULATION
-        // ==========================================
-        function setStatusFilter(filter) {
-            currentFilter = filter;
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                if (btn.dataset.filter === filter) {
-                    btn.className = 'filter-btn px-3 py-2 rounded-xl text-xs font-semibold transition bg-blue-600 text-white shadow-sm';
-                } else {
-                    btn.className = 'filter-btn px-3 py-2 rounded-xl text-xs font-semibold transition bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700';
-                }
-            });
-            renderServices();
-        }
-
-        function setFeedFilter(filter) {
-            currentFeedFilter = filter;
-            document.querySelectorAll('.feed-tab').forEach(tab => {
-                if (tab.dataset.feedFilter === filter) {
-                    tab.className = 'feed-tab px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-600 text-white transition';
-                } else {
-                    tab.className = 'feed-tab px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800 transition';
-                }
-            });
-            renderFeedTimeline();
-        }
-
-        function applyServiceStatusUpdate(serviceId, newStatus) {
-            const svc = services.find(s => s.id === serviceId);
-            if (!svc) return;
-
-            svc.status = newStatus;
-            const baseline = INITIAL_SERVICES.find(o => o.id === serviceId);
-
-            if (newStatus === 'Healthy') {
-                svc.incidentId = 'None';
-                svc.userImpact = 'Service is operating normally with no active degradation or latency.';
-                svc.mitigation = 'All infrastructure nodes passed health checks and traffic routing is balanced.';
-            } else {
-                if (svc.incidentId === 'None') {
-                    svc.incidentId = baseline && baseline.incidentId !== 'None' ? baseline.incidentId : 'MO1550821';
-                }
-                if (baseline && baseline.status !== 'Healthy') {
-                    svc.userImpact = baseline.userImpact;
-                    svc.mitigation = baseline.mitigation;
-                } else {
-                    svc.userImpact = `Simulated ${newStatus.toLowerCase()} state impacting subset of tenant requests.`;
-                    svc.mitigation = SHARED_MITIGATION;
-                }
-            }
-
-            saveStateToStorage();
-            refreshAllUI();
-        }
-
-        function cycleServiceStatus(serviceId) {
-            const svc = services.find(s => s.id === serviceId);
-            if (!svc) return;
-            const currentIndex = STATUS_ORDER.indexOf(svc.status);
-            const nextStatus = STATUS_ORDER[(currentIndex + 1) % STATUS_ORDER.length];
-            applyServiceStatusUpdate(serviceId, nextStatus);
-            showToast(`${svc.name} updated to "${nextStatus}"`);
-        }
-
-        function setSpecificServiceStatus(serviceId, newStatus) {
-            const svc = services.find(s => s.id === serviceId);
-            if (!svc) return;
-            applyServiceStatusUpdate(serviceId, newStatus);
-            openServiceDetail(serviceId);
-            showToast(`${svc.name} updated to "${newStatus}"`);
-        }
-
-        function openServiceDetail(serviceId) {
-            selectedServiceId = serviceId;
-            const svc = services.find(s => s.id === serviceId);
-            if (!svc) return;
-
-            const cfg = STATUS_CONFIG[svc.status];
-            const iconEl = document.getElementById('modalServiceIcon');
-            iconEl.className = `w-10 h-10 rounded-xl ${svc.iconBg} flex items-center justify-center`;
-            iconEl.innerHTML = SERVICE_SVGS[svc.id];
-
-            document.getElementById('modalServiceName').textContent = svc.name;
-            document.getElementById('modalIncidentId').textContent = `Incident ID: ${svc.incidentId}`;
-
-            const badgeEl = document.getElementById('modalStatusBadge');
-            badgeEl.className = `text-xs px-2.5 py-0.5 rounded-full font-semibold ${cfg.badgeClass}`;
-            badgeEl.textContent = cfg.label;
-
-            document.getElementById('modalUserImpact').innerHTML = `
-                <span class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1">${escapeHTML(svc.affectedScope)}</span>
-                <span>${escapeHTML(svc.userImpact)}</span>
-            `;
-            document.getElementById('modalRootCause').textContent = svc.rootCause;
-            document.getElementById('modalMitigation').textContent = svc.mitigation;
-
-            document.getElementById('modalStatusButtons').innerHTML = STATUS_ORDER.map(st => {
-                const isActive = svc.status === st;
-                return `
-                    <button onclick="setSpecificServiceStatus('${svc.id}', '${st}')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium transition ${isActive ? 'bg-blue-600 text-white shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-blue-400'}">
-                        ${st}
-                    </button>
-                `;
-            }).join('');
-
-            const modal = document.getElementById('serviceDetailModal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        }
-
-        function closeModal(modalId) {
-            const modal = document.getElementById(modalId);
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }
-
-        function deleteAdminNote(noteId) {
-            adminNotes = adminNotes.filter(n => n.id !== noteId);
-            saveStateToStorage();
-            renderFeedTimeline();
-            showToast('Admin note removed');
-        }
-
-        // ==========================================
-        // 6. EMPLOYEE ADVISORY GENERATOR
-        // ==========================================
-        function switchAnnouncementFormat(format) {
-            currentAnnouncementFormat = format;
-            const tabs = {
-                'TEAMS': document.getElementById('formatTabTEAMS'),
-                'EMAIL': document.getElementById('formatTabEMAIL'),
-                'EXEC': document.getElementById('formatTabEXEC')
-            };
-            Object.entries(tabs).forEach(([key, el]) => {
-                if (key === format) {
-                    el.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-sm transition';
-                } else {
-                    el.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition';
-                }
-            });
-            generateAnnouncementText();
-        }
-
-        function generateAnnouncementText() {
-            const includePhishing = document.getElementById('includePhishingWarning').checked;
-            const affectedServices = services.filter(s => s.status !== 'Healthy');
-            const activeIds = getActiveIncidentIds();
-            const incidentRef = activeIds.length > 0 ? activeIds.join(' / ') : 'None (Resolved)';
-            const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-
-            const impactedBulletList = affectedServices.length > 0
-                ? affectedServices.map(s => `• ${s.name} — ${s.status} (${s.userImpact})`).join('\n')
-                : '• All Microsoft 365 services have returned to Healthy status.';
-
-            const compactServiceNames = affectedServices.length > 0
-                ? affectedServices.map(s => `${s.name} (${s.status})`).join(', ')
-                : 'None (All services operational)';
-
-            const phishingBlockTeams = includePhishing
-                ? `\n\n⚠️ Security Reminder — Beware of Phishing:\nDuring Microsoft 365 service disruptions, attackers frequently send fake "account fix" emails or make fraudulent support calls. Corporate IT will NEVER ask for your password or MFA verification codes.`
-                : '';
-
-            const phishingBlockEmail = includePhishing
-                ? `\n\nSECURITY REMINDER (PHISHING AWARENESS):\nPlease remain vigilant against unsolicited emails, phone calls, or links claiming to be from Microsoft Support or the IT Helpdesk offering "urgent account fixes." Corporate IT will never ask for your password or MFA approval codes.`
-                : '';
-
-            let output = '';
-
-            if (currentAnnouncementFormat === 'TEAMS') {
-                output = `🚨 [IT Service Advisory] Microsoft 365 Service Status Update
-Updated: ${nowStr} | Ref: ${incidentRef}
-
-Microsoft is currently experiencing a global service issue impacting multiple Microsoft 365 workloads. Employees may observe intermittent delays or timeouts in:
-${impactedBulletList}
-
-What You Need to Know:
-• No action is required on your device—do not reinstall Office apps or reset your password.
-• Microsoft engineering has applied traffic optimizations and is actively rebuilding affected infrastructure nodes (confirmed non-malicious).
-• Please allow extra time for email delivery and cloud file sync while queues clear.${phishingBlockTeams}
-
-Need urgent assistance? Contact the IT Service Desk via standard support channels.`;
-            } else if (currentAnnouncementFormat === 'EMAIL') {
-                output = `Subject: [IT Service Advisory] Microsoft 365 Service Disruption (${incidentRef})
-
-Dear Colleagues,
-
-We are writing to inform you of an ongoing Microsoft 365 service incident affecting global Microsoft cloud infrastructure (Tracking IDs: ${incidentRef}). As of ${nowStr}, the following workloads are impacted:
-
-${impactedBulletList}
-
-Recommended Guidance for Staff:
-1. No Action Required: This issue originates within Microsoft's cloud infrastructure. You do not need to change your password or modify local client settings.
-2. Expect Intermittent Latency: Email delivery, Teams presence/messaging, and SharePoint/OneDrive sync may experience temporary delays as Microsoft's traffic management and server rebuilds restore capacity.
-3. Core Authentication Healthy: Microsoft Entra ID sign-in and SSO remain fully operational.${phishingBlockEmail}
-
-IT Operations is continuously monitoring @MSFT365Status and the Microsoft 365 Admin Center, and will send a follow-up notice once full service restoration is confirmed.
-
-Best regards,
-IT Operations & Service Desk`;
-            } else {
-                output = `EXECUTIVE IT INCIDENT BRIEFING
-Timestamp: ${nowStr}
-Vendor / Platform: Microsoft 365 (Incident IDs: ${incidentRef})
-Overall Status: ${affectedServices.length > 0 ? 'Service Degradation / Active Recovery' : 'Healthy / Operational'}
-
-1. Impacted Workloads:
-${compactServiceNames}
-
-2. Root Cause Summary:
-Automated health checks marked a subset of Microsoft infrastructure nodes unhealthy, routing concentrated traffic load onto remaining servers. Microsoft has officially confirmed the event is non-malicious.
-
-3. Vendor Mitigation & Recovery Trajectory:
-Microsoft has implemented traffic optimization and selective traffic limiting while validating server configuration rollbacks/rebuilds. Partial regional recovery is underway; non-essential deployments remain halted.
-
-4. Internal IT Actions:
-• Continuous telemetry monitoring via MSMonitor, Microsoft 365 Admin Center, & @MSFT365Status.
-• Employee advisory issued with staff guidance.${includePhishing ? '\n• Security operations monitoring heightened for outage-themed phishing lures.' : ''}`;
-            }
-
-            document.getElementById('announcementOutput').value = output;
-        }
-
-        function copyAnnouncementToClipboard() {
-            const textarea = document.getElementById('announcementOutput');
-            textarea.select();
-            textarea.setSelectionRange(0, 99999);
-            try {
-                document.execCommand('copy');
-                showToast('Advisory copied to clipboard!');
-            } catch (err) {
-                showToast('Unable to auto-copy. Please press Ctrl+C / Cmd+C.');
-            }
-        }
-
-        // ==========================================
-        // 7. AUTO-REFRESH TIMER, THEME & TOAST UTILITIES
-        // ==========================================
-        function startAutoRefreshTimer() {
-            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-            autoRefreshInterval = setInterval(() => {
-                const isEnabled = document.getElementById('autoRefreshToggle').checked;
-                const badge = document.getElementById('countdownBadge');
-                if (!isEnabled) {
-                    badge.textContent = 'OFF';
-                    return;
-                }
-                countdownSeconds--;
-                if (countdownSeconds <= 0) {
-                    syncLiveTelemetry(false);
-                } else {
-                    badge.textContent = `${countdownSeconds}s`;
-                }
-            }, 1000);
-        }
-
-        function initTheme() {
-            const savedTheme = localStorage.getItem(STORAGE_KEYS.THEME);
-            if (savedTheme === 'light') {
-                document.documentElement.classList.remove('dark');
-            } else {
-                document.documentElement.classList.add('dark');
-            }
-        }
-
-        function toggleTheme() {
-            const html = document.documentElement;
-            html.classList.toggle('dark');
-            const isDark = html.classList.contains('dark');
-            try {
-                localStorage.setItem(STORAGE_KEYS.THEME, isDark ? 'dark' : 'light');
-            } catch (e) {}
-            showToast(`Switched to ${isDark ? 'Dark Operations' : 'Light'} mode`);
-        }
-
-        function showToast(message) {
-            const toast = document.getElementById('toastNotification');
-            document.getElementById('toastMessage').textContent = message;
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            toast.classList.add('translate-y-0', 'opacity-100');
-            clearTimeout(window._toastTimeout);
-            window._toastTimeout = setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-                toast.classList.remove('translate-y-0', 'opacity-100');
-            }, 2800);
-        }
-
-        // ==========================================
-        // 8. EVENT LISTENERS & INITIALIZATION
-        // ==========================================
-        document.addEventListener('DOMContentLoaded', () => {
-            initTheme();
-            refreshAllUI();
-            startAutoRefreshTimer();
-
-            // Perform initial zero-backend live telemetry check on page load
-            syncLiveTelemetry(false);
-
-            // Theme toggles
-            document.getElementById('themeToggleDesktop').addEventListener('click', toggleTheme);
-            document.getElementById('themeToggleMobile').addEventListener('click', toggleTheme);
-
-            // Sync Now manual trigger
-            document.getElementById('syncNowBtn').addEventListener('click', () => syncLiveTelemetry(true));
-
-            // Reset Simulation
-            document.getElementById('resetDemoBtn').addEventListener('click', () => {
-                services = JSON.parse(JSON.stringify(INITIAL_SERVICES));
-                saveStateToStorage();
-                setStatusFilter('ALL');
-                document.getElementById('searchInput').value = '';
-                searchQuery = '';
-                syncLiveTelemetry(false);
-                showToast('Simulation reset to baseline & re-synced');
-            });
-
-            // Search input
-            document.getElementById('searchInput').addEventListener('input', (e) => {
-                searchQuery = e.target.value;
-                renderServices();
-            });
-
-            // Service status filter pills
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.addEventListener('click', () => setStatusFilter(btn.dataset.filter));
-            });
-
-            // Feed filter tabs
-            document.querySelectorAll('.feed-tab').forEach(tab => {
-                tab.addEventListener('click', () => setFeedFilter(tab.dataset.feedFilter));
-            });
-
-            // Open Employee Advisory Modal
-            document.getElementById('openAnnouncementModalBtn').addEventListener('click', () => {
-                generateAnnouncementText();
-                const modal = document.getElementById('announcementModal');
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            });
-
-            // Add Admin Note
-            document.getElementById('addFeedForm').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const input = document.getElementById('newFeedText');
-                const tag = document.getElementById('postTagSelect').value;
-                const text = input.value.trim();
-                if (!text) {
-                    showToast('Please enter a note before posting');
-                    return;
-                }
-                const now = new Date();
-                const timeStr = now.toLocaleString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false
-                });
-                adminNotes.unshift({
-                    id: 'note-' + Date.now(),
-                    timestamp: `${timeStr} • Admin Log`,
-                    tag: tag,
-                    category: 'ADMIN',
-                    author: 'IT Operations Admin',
-                    content: text,
-                    url: 'https://admin.microsoft.com'
-                });
-                saveStateToStorage();
-                input.value = '';
-                renderFeedTimeline();
-                showToast('Admin note added to timeline');
-            });
-
-            // Close modals when clicking backdrop
-            ['serviceDetailModal', 'announcementModal'].forEach(modalId => {
-                document.getElementById(modalId).addEventListener('click', (e) => {
-                    if (e.target.id === modalId) closeModal(modalId);
-                });
-            });
+  </div>
+
+  <!-- Employee Advisory Generator Modal -->
+  <div id="advisory-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 class="text-lg font-bold">Employee IT Advisory Generator</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">
+            Dynamically populated from currently impacted workloads with anti-phishing guidance
+          </p>
+        </div>
+        <button onclick="closeAdvisoryModal()" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="inline-flex rounded-lg p-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+          <button onclick="setAdvisoryTemplate('teams')" id="tpl-teams" class="px-3 py-1 rounded-md font-semibold bg-white dark:bg-slate-700 shadow-xs cursor-pointer">Teams / Slack Alert</button>
+          <button onclick="setAdvisoryTemplate('email')" id="tpl-email" class="px-3 py-1 rounded-md font-medium text-slate-600 dark:text-slate-300 cursor-pointer">All-Staff Email Notice</button>
+          <button onclick="setAdvisoryTemplate('exec')" id="tpl-exec" class="px-3 py-1 rounded-md font-medium text-slate-600 dark:text-slate-300 cursor-pointer">Executive IT Summary</button>
+        </div>
+        <label class="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+          <input type="checkbox" id="include-phishing-warning" checked onchange="renderAdvisoryText()" class="rounded text-sky-600 focus:ring-sky-500" />
+          Include Phishing Warning
+        </label>
+      </div>
+
+      <textarea
+        id="advisory-output"
+        rows="11"
+        class="w-full p-3.5 text-xs font-mono rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 leading-relaxed"
+      ></textarea>
+
+      <div class="flex items-center justify-between pt-1">
+        <span id="copy-feedback" class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 opacity-0 transition-opacity">
+          ✓ Copied to clipboard!
+        </span>
+        <div class="flex gap-2">
+          <button onclick="closeAdvisoryModal()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 transition cursor-pointer">
+            Close
+          </button>
+          <button onclick="copyAdvisoryText()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white shadow-sm transition cursor-pointer">
+            Copy Advisory Text
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    // =========================================================================
+    // 1. KEYWORD MAPPING FOR AUTOMATIC CARD UPDATES FROM status.json / RSS
+    // =========================================================================
+    const SERVICE_KEYWORDS = {
+      exchange: [
+        "exchange", "outlook", "email", "mail flow", "mailbox", "owa", "ex155"
+      ],
+      teams: [
+        "teams", "microsoft teams", "meeting", "chat", "calling", "tm155"
+      ],
+      sharepoint: [
+        "sharepoint", "spo", "site collection", "document library", "sp155"
+      ],
+      onedrive: [
+        "onedrive", "one drive", "file sync", "od155"
+      ],
+      entra: [
+        "entra", "azure ad", "active directory", "authentication", "sign-in", "signin", "login", "mfa", "conditional access"
+      ],
+      intune: [
+        "intune", "endpoint manager", "mdm", "device management", "autopilot"
+      ],
+      powerplatform: [
+        "power platform", "power automate", "power apps", "power bi", "flow", "copilot studio"
+      ],
+      copilot: [
+        "copilot", "m365 copilot", "microsoft 365 copilot", "bizchat"
+      ]
+    };
+
+    const OUTAGE_TERMS = [
+      "outage", "interruption", "unavailable", "down", "unable to access", "cannot access", "service disruption"
+    ];
+    const DEGRADED_TERMS = [
+      "degradation", "degraded", "intermittent", "latency", "slow", "delay", "delays", "issue", "issues", "extended recovery", "advisory"
+    ];
+    const HEALTHY_TERMS = [
+      "restored", "resolved", "mitigated", "recovered", "healthy", "operating normally"
+    ];
+
+    // =========================================================================
+    // 2. BASELINE DATASET (Nov 12-13, 2026 Incident Reference)
+    // =========================================================================
+    const DEFAULT_SERVICES = [
+      {
+        id: "exchange",
+        name: "Exchange Online",
+        category: "Email & Calendaring",
+        status: "outage",
+        incidentId: "EX1550543",
+        summary: "Intermittent connection timeouts and delayed mail delivery across web and desktop clients.",
+        impact: "Users may experience failures accessing mailboxes via Outlook on the web, desktop clients, or mobile devices, along with mail queue delays.",
+        rootCause: "Automated health checks marked a subset of backend infrastructure servers unhealthy, concentrating traffic load onto remaining nodes.",
+        mitigation: "Traffic throttling and server rebuilds to known-good configurations are actively restoring regional capacity.",
+        autoSynced: false,
+        manualOverride: false
+      },
+      {
+        id: "teams",
+        name: "Microsoft Teams",
+        category: "Collaboration & Meetings",
+        status: "degraded",
+        incidentId: "MO1550821",
+        summary: "Delayed message delivery, presence sync lag, and intermittent meeting join retries.",
+        impact: "Chat messages and channel posts may take longer than usual to send or load; calendar integration with Exchange is intermittently degraded.",
+        rootCause: "Downstream dependency pressure from shared authentication and Exchange Online routing infrastructure.",
+        mitigation: "Load balancing and non-essential traffic shedding have stabilized core audio/video media paths.",
+        autoSynced: false,
+        manualOverride: false
+      },
+      {
+        id: "sharepoint",
+        name: "SharePoint Online",
+        category: "Content & Intranet",
+        status: "degraded",
+        incidentId: "MO1550821",
+        summary: "Elevated page load latency and intermittent HTTP 503 errors on document libraries.",
+        impact: "Users opening modern sites, lists, or shared libraries may encounter slow rendering or temporary retry prompts.",
+        rootCause: "Shared frontend routing contention caused by regional traffic rerouting during infrastructure recovery.",
+        mitigation: "Traffic shaping policies are protecting core storage clusters while front-end pools stabilize.",
+        autoSynced: false,
+        manualOverride: false
+      },
+      {
+        id: "onedrive",
+        name: "OneDrive for Business",
+        category: "Cloud Storage & Sync",
+        status: "degraded",
+        incidentId: "MO1550821",
+        summary: "Sync client pause/resume cycles and slower web file previews.",
+        impact: "Desktop sync clients may temporarily show 'Processing changes' longer than normal; direct file downloads remain functional.",
+        rootCause: "Shared SharePoint/OneDrive storage tier throttling during active traffic optimization.",
+        mitigation: "Gradual removal of traffic restrictions as rebuilt server nodes rejoin healthy pools.",
+        autoSynced: false,
+        manualOverride: false
+      },
+      {
+        id: "entra",
+        name: "Microsoft Entra ID",
+        category: "Identity & Access",
+        status: "healthy",
+        incidentId: "Operational",
+        summary: "Token issuance, SSO, and Conditional Access policies operating within normal SLA.",
+        impact: "No active service-wide authentication interruptions reported.",
+        rootCause: "N/A — Service operating normally.",
+        mitigation: "Continuous automated health monitoring active.",
+        autoSynced: false,
+        manualOverride: false
+      },
+      {
+        id: "intune",
+        name: "Microsoft Intune",
+        category: "Endpoint Management",
+        status: "healthy",
+        incidentId: "Operational",
+        summary: "Device check-ins, compliance evaluation, and app deployments functioning normally.",
+        impact: "No active impact to endpoint management workflows.",
+        rootCause: "N/A — Service operating normally.",
+        mitigation: "Continuous automated health monitoring active.",
+        autoSynced: false,
+        manualOverride: false
+      },
+      {
+        id: "powerplatform",
+        name: "Power Platform",
+        category: "Power Automate & Apps",
+        status: "degraded",
+        incidentId: "MO1550821",
+        summary: "Flows using Outlook or SharePoint connectors may experience trigger or action retries.",
+        impact: "Automated cloud flows depending on Exchange/SharePoint connectors may queue or retry before completing.",
+        rootCause: "Connector throttling triggered by upstream Exchange Online and SharePoint Online load management.",
+        mitigation: "Built-in connector retry policies automatically resume queued runs as upstream services recover.",
+        autoSynced: false,
+        manualOverride: false
+      },
+      {
+        id: "copilot",
+        name: "Microsoft 365 Copilot",
+        category: "AI Assistant",
+        status: "degraded",
+        incidentId: "MO1550821",
+        summary: "Reduced grounding context when summarizing recent emails, Teams chats, or files.",
+        impact: "Prompts referencing recent mailbox or SharePoint items may return partial results or timeout.",
+        rootCause: "Semantic index queries depend on degraded Exchange and SharePoint retrieval endpoints.",
+        mitigation: "Core LLM inference remains healthy; grounding accuracy improves automatically as M365 workloads recover.",
+        autoSynced: false,
+        manualOverride: false
+      }
+    ];
+
+    const BASELINE_FEED = [
+      {
+        id: "base-1",
+        author: "@MSFT365Status",
+        handle: "Official Incident Update • EX1550543 / MO1550821",
+        time: "Nov 13, 2026 • Latest Telemetry",
+        text: "We're continuing to see steady recovery across affected Microsoft 365 services following targeted traffic optimization and server rebuilds. Some users may still experience intermittent latency while queued requests drain.",
+        isLive: false
+      },
+      {
+        id: "base-2",
+        author: "@MSFT365Status",
+        handle: "Engineering Mitigation Update",
+        time: "Nov 13, 2026 • Mitigation Phase",
+        text: "Rebuilding affected server nodes to known-good configurations has prevented repeat health-check failures. All non-essential deployments remain paused while we restore full regional capacity.",
+        isLive: false
+      },
+      {
+        id: "base-3",
+        author: "@MSFT365Status",
+        handle: "Root Cause Confirmation",
+        time: "Nov 12, 2026 • Initial Investigation",
+        text: "Confirmed that the service disruption is not caused by a cyberattack. Automated health checks unexpectedly took a subset of servers offline, creating elevated load on remaining infrastructure.",
+        isLive: false
+      }
+    ];
+
+    // =========================================================================
+    // 3. STATE MANAGEMENT & PERSISTENCE
+    // =========================================================================
+    let services = JSON.parse(localStorage.getItem("msmonitor_services_v2")) || structuredClone(DEFAULT_SERVICES);
+    let adminNotes = JSON.parse(localStorage.getItem("msmonitor_notes_v2")) || [];
+    let liveFeedItems = [];
+    let currentFilter = "all";
+    let currentAdvisoryTemplate = "teams";
+    let countdown = 60;
+    let countdownInterval = null;
+    let isSyncing = false;
+
+    const LIVE_RSS_BRIDGES = [
+      {
+        name: "status.cloud.microsoft RSS",
+        url: "https://status.cloud.microsoft/api/feed/mac"
+      },
+      {
+        name: "@MSFT365Status RSS Bridge",
+        url: "https://rsshub.app/twitter/user/MSFT365Status"
+      }
+    ];
+
+    // =========================================================================
+    // 4. KEYWORD SCANNER: MAP LIVE FEED ITEMS -> 8 SERVICE CARDS
+    // =========================================================================
+    function classifySeverity(text) {
+      const lower = text.toLowerCase();
+      // Check resolved/healthy first if explicitly stated as restored
+      if (HEALTHY_TERMS.some(term => lower.includes(term)) && !lower.includes("not yet restored") && !lower.includes("partially")) {
+        return "healthy";
+      }
+      if (OUTAGE_TERMS.some(term => lower.includes(term))) {
+        return "outage";
+      }
+      if (DEGRADED_TERMS.some(term => lower.includes(term))) {
+        return "degraded";
+      }
+      return "degraded"; // Default cautious status if an active incident mentions the service
+    }
+
+    function extractIncidentId(text) {
+      const match = text.match(/\b(EX|MO|TM|SP|OD|IT|CP|PL)\d{5,8}\b/i);
+      return match ? match[0].toUpperCase() : "LIVE-ADVISORY";
+    }
+
+    function applyKeywordSyncToServices(items, sourceName) {
+      if (!Array.isArray(items)) return 0;
+
+      let matchedServiceCount = 0;
+      const badge = document.getElementById("keyword-match-badge");
+
+      // If status.json was successfully fetched and has 0 active incidents, mark non-overridden services healthy
+      if (items.length === 0) {
+        services.forEach(svc => {
+          if (!svc.manualOverride) {
+            svc.status = "healthy";
+            svc.incidentId = "Operational";
+            svc.summary = `Verified operational via ${sourceName} (0 active global advisories).`;
+            svc.autoSynced = true;
+            matchedServiceCount++;
+          }
         });
-    </script>
+        if (badge) {
+          badge.textContent = "Keyword Sync: 0 Active Advisories (All Clear)";
+          badge.classList.remove("hidden");
+        }
+        saveServices();
+        return matchedServiceCount;
+      }
+
+      // Scan items from oldest to newest so the most recent item wins if multiple mention the same service
+      const chronologicalItems = [...items].reverse();
+      const detectedUpdates = {};
+
+      chronologicalItems.forEach(item => {
+        const combinedText = `${item.title || ""} ${item.description || ""}`.trim();
+        const lowerText = combinedText.toLowerCase();
+
+        Object.entries(SERVICE_KEYWORDS).forEach(([serviceId, keywords]) => {
+          const isMatch = keywords.some(kw => lowerText.includes(kw));
+          if (isMatch) {
+            const severity = classifySeverity(combinedText);
+            const incidentId = extractIncidentId(combinedText);
+            const cleanSnippet = (item.title || item.description || "").slice(0, 165);
+            detectedUpdates[serviceId] = {
+              status: severity,
+              incidentId: severity === "healthy" ? "Operational" : incidentId,
+              summary: cleanSnippet + (cleanSnippet.length >= 165 ? "..." : ""),
+              impact: item.description || item.title || "Active advisory detected from live status feed.",
+              mitigation: `Live telemetry synced from ${sourceName} (${item.pubDate || "Recent"}).`
+            };
+          }
+        });
+      });
+
+      // Apply detected updates to non-manually-overridden service cards
+      services.forEach(svc => {
+        if (!svc.manualOverride && detectedUpdates[svc.id]) {
+          const upd = detectedUpdates[svc.id];
+          svc.status = upd.status;
+          svc.incidentId = upd.incidentId;
+          svc.summary = upd.summary;
+          svc.impact = upd.impact;
+          svc.mitigation = upd.mitigation;
+          svc.autoSynced = true;
+          matchedServiceCount++;
+        }
+      });
+
+      if (badge) {
+        badge.textContent = matchedServiceCount > 0
+          ? `Keyword Sync: Updated ${matchedServiceCount} service(s)`
+          : `Keyword Sync: Scanned ${items.length} post(s)`;
+        badge.classList.remove("hidden");
+      }
+
+      saveServices();
+      return matchedServiceCount;
+    }
+
+    // =========================================================================
+    // 5. LIVE DATA SYNCHRONIZATION ENGINE (status.json -> RSS -> Baseline)
+    // =========================================================================
+    function formatTimeNow() {
+      return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    function updateSyncPill(state, message) {
+      const dot = document.getElementById("sync-status-dot");
+      const text = document.getElementById("sync-status-text");
+      if (!dot || !text) return;
+
+      dot.className = "w-2 h-2 rounded-full";
+      if (state === "syncing") {
+        dot.classList.add("bg-sky-500", "animate-ping");
+      } else if (state === "live") {
+        dot.classList.add("bg-emerald-500");
+      } else {
+        dot.classList.add("bg-amber-500");
+      }
+      text.textContent = message;
+    }
+
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toast-container");
+      if (!container) return;
+
+      const colors = {
+        success: "bg-emerald-950/95 border-emerald-500/40 text-emerald-200",
+        warning: "bg-amber-950/95 border-amber-500/40 text-amber-200",
+        info: "bg-slate-900/95 border-sky-500/40 text-slate-100"
+      };
+
+      const toast = document.createElement("div");
+      toast.className = `px-4 py-2.5 rounded-xl border shadow-lg text-xs font-medium backdrop-blur-md transition-all duration-300 ${colors[type] || colors.info}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(8px)";
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    async function syncLiveData(isManual = false) {
+      if (isSyncing) return;
+      isSyncing = true;
+
+      const syncIcon = document.getElementById("sync-icon");
+      const syncBtnLabel = document.getElementById("sync-btn-label");
+      const syncBtn = document.getElementById("btn-sync-now");
+
+      if (syncIcon) syncIcon.classList.add("animate-spin");
+      if (syncBtnLabel) syncBtnLabel.textContent = "Syncing...";
+      updateSyncPill("syncing", "Syncing live feeds...");
+
+      let syncedSource = null;
+      let fetchedItems = [];
+
+      // Tier 1: Same-origin ./status.json generated by GitHub Actions
+      try {
+        const res = await fetch(`./status.json?t=${Date.now()}`, { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.items)) {
+            fetchedItems = data.items.map((item, idx) => ({
+              id: `live-json-${idx}`,
+              author: item.source || "Microsoft 365 Cloud Status",
+              handle: item.title || "Official Status Advisory",
+              time: item.pubDate || data.updatedAt || "Live Sync",
+              title: item.title || "",
+              description: item.description || "",
+              text: item.description || item.title || "Status update received.",
+              link: item.link || "https://status.cloud.microsoft",
+              isLive: true
+            }));
+            syncedSource = "status.json";
+          }
+        }
+      } catch (e) {
+        // Fallback to Tier 2 when running locally or before GitHub Action runs
+      }
+
+      // Tier 2: Public CORS RSS-to-JSON bridge fallback
+      if (!syncedSource) {
+        for (const bridge of LIVE_RSS_BRIDGES) {
+          try {
+            const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(bridge.url)}`;
+            const res = await fetch(proxyUrl);
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data.status === "ok" && Array.isArray(data.items) && data.items.length > 0) {
+              fetchedItems = data.items.slice(0, 8).map((item, idx) => {
+                const cleanText = (item.description || "").replace(/<[^>]*>?/gm, " ").replace(/\s+/g, " ").trim();
+                return {
+                  id: `live-rss-${idx}`,
+                  author: bridge.name,
+                  handle: item.title || "Live RSS Update",
+                  time: item.pubDate || "Recent",
+                  title: item.title || "",
+                  description: cleanText,
+                  text: cleanText || item.title,
+                  link: item.link || "https://status.cloud.microsoft",
+                  isLive: true
+                };
+              });
+              syncedSource = bridge.name;
+              break;
+            }
+          } catch (err) {
+            // Continue to next bridge
+          }
+        }
+      }
+
+      const nowStr = formatTimeNow();
+      const feedSourceTag = document.getElementById("feed-source-tag");
+
+      if (syncedSource) {
+        liveFeedItems = fetchedItems;
+        const updatedCount = applyKeywordSyncToServices(fetchedItems, syncedSource);
+        updateSyncPill("live", `Synced via ${syncedSource} • ${nowStr}`);
+        if (feedSourceTag) {
+          feedSourceTag.textContent = `LIVE • ${syncedSource}`;
+          feedSourceTag.className = "text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30";
+        }
+        showToast(
+          `✓ Refreshed via ${syncedSource} (${nowStr})${updatedCount > 0 ? ` • ${updatedCount} service(s) synced` : ""}`,
+          "success"
+        );
+      } else {
+        // Tier 3: Baseline / Local Simulation Mode
+        updateSyncPill("baseline", `Synced (Baseline Mode • ${nowStr})`);
+        if (feedSourceTag) {
+          feedSourceTag.textContent = "Baseline Mode";
+          feedSourceTag.className = "text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30";
+        }
+        showToast(`✓ Refresh completed in Baseline Mode (${nowStr})`, "warning");
+      }
+
+      // Visual confirmation on Sync button
+      if (syncIcon) syncIcon.classList.remove("animate-spin");
+      if (syncBtnLabel) syncBtnLabel.textContent = "✓ Refreshed!";
+      if (syncBtn) {
+        syncBtn.classList.add("border-emerald-500", "text-emerald-600", "dark:text-emerald-400");
+      }
+
+      setTimeout(() => {
+        if (syncBtnLabel) syncBtnLabel.textContent = "Sync Now";
+        if (syncBtn) {
+          syncBtn.classList.remove("border-emerald-500", "text-emerald-600", "dark:text-emerald-400");
+        }
+      }, 2500);
+
+      renderAll();
+      resetCountdown();
+      isSyncing = false;
+    }
+
+    function resetCountdown() {
+      countdown = 60;
+      const timerEl = document.getElementById("countdown-timer");
+      if (timerEl) timerEl.textContent = `${countdown}s`;
+    }
+
+    function startAutoRefreshTimer() {
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = setInterval(() => {
+        countdown -= 1;
+        const timerEl = document.getElementById("countdown-timer");
+        if (countdown <= 0) {
+          if (timerEl) timerEl.textContent = "0s";
+          syncLiveData(false);
+        } else if (timerEl) {
+          timerEl.textContent = `${countdown}s`;
+        }
+      }, 1000);
+    }
+
+    // =========================================================================
+    // 6. UI RENDERING (BANNER, SERVICE CARDS, TIMELINE, ADVISORY)
+    // =========================================================================
+    function saveServices() {
+      localStorage.setItem("msmonitor_services_v2", JSON.stringify(services));
+    }
+
+    function cycleServiceStatus(serviceId) {
+      const order = ["healthy", "degraded", "outage"];
+      const target = services.find(s => s.id === serviceId);
+      if (!target) return;
+
+      const nextStatus = order[(order.indexOf(target.status) + 1) % order.length];
+      target.status = nextStatus;
+      target.manualOverride = true;
+      target.autoSynced = false;
+      if (nextStatus === "healthy") {
+        target.incidentId = "Operational";
+      } else if (target.incidentId === "Operational") {
+        target.incidentId = "SIM-ALERT";
+      }
+
+      saveServices();
+      renderAll();
+      showToast(`Simulated ${target.name} → ${nextStatus.toUpperCase()}`, "info");
+    }
+
+    function resetSimulation() {
+      localStorage.removeItem("msmonitor_services_v2");
+      localStorage.removeItem("msmonitor_notes_v2");
+      services = structuredClone(DEFAULT_SERVICES);
+      adminNotes = [];
+      const badge = document.getElementById("keyword-match-badge");
+      if (badge) badge.classList.add("hidden");
+      renderAll();
+      syncLiveData(true);
+    }
+
+    function setFilter(filter) {
+      currentFilter = filter;
+      ["all", "impacted", "healthy"].forEach(f => {
+        const btn = document.getElementById(`filter-${f}`);
+        if (!btn) return;
+        if (f === filter) {
+          btn.className = "px-2.5 py-1 rounded-md font-semibold bg-white dark:bg-slate-700 shadow-xs cursor-pointer";
+        } else {
+          btn.className = "px-2.5 py-1 rounded-md font-medium text-slate-600 dark:text-slate-300 cursor-pointer";
+        }
+      });
+      renderServices();
+    }
+
+    function renderGlobalBanner() {
+      const outageCount = services.filter(s => s.status === "outage").length;
+      const degradedCount = services.filter(s => s.status === "degraded").length;
+      const healthyCount = services.filter(s => s.status === "healthy").length;
+
+      document.getElementById("kpi-outage").textContent = outageCount;
+      document.getElementById("kpi-degraded").textContent = degradedCount;
+      document.getElementById("kpi-healthy").textContent = healthyCount;
+
+      const banner = document.getElementById("global-banner");
+      const dot = document.getElementById("global-banner-dot");
+      const title = document.getElementById("global-banner-title");
+      const desc = document.getElementById("global-banner-desc");
+      const tags = document.getElementById("global-incident-tags");
+
+      const activeIds = [...new Set(
+        services
+          .filter(s => s.status !== "healthy" && s.incidentId !== "Operational")
+          .map(s => s.incidentId)
+      )];
+
+      if (outageCount > 0) {
+        banner.className = "rounded-2xl p-5 border transition-all duration-300 shadow-sm bg-rose-500/10 border-rose-500/30";
+        dot.className = "relative w-3.5 h-3.5 mt-1.5 rounded-full bg-rose-500 pulse-dot shrink-0";
+        title.className = "text-base sm:text-lg font-bold text-rose-700 dark:text-rose-300";
+        title.textContent = `Major Service Outage — ${outageCount} Outage, ${degradedCount} Degraded`;
+        desc.textContent = "Critical workload interruptions detected. Review affected cards below and issue employee advisories if mail or collaboration workflows are impacted.";
+        tags.className = "text-xs font-mono px-2 py-0.5 rounded bg-rose-500/20 text-rose-800 dark:text-rose-200 border border-rose-500/30";
+        tags.textContent = activeIds.length ? `Tracking: ${activeIds.join(" • ")}` : "Active Outage";
+      } else if (degradedCount > 0) {
+        banner.className = "rounded-2xl p-5 border transition-all duration-300 shadow-sm bg-amber-500/10 border-amber-500/30";
+        dot.className = "relative w-3.5 h-3.5 mt-1.5 rounded-full bg-amber-500 pulse-dot shrink-0";
+        title.className = "text-base sm:text-lg font-bold text-amber-700 dark:text-amber-300";
+        title.textContent = `Partial Service Degradation — ${degradedCount} Workload(s) Experiencing Latency`;
+        desc.textContent = "Core services remain reachable, though intermittent delays or connector retries may occur while recovery completes.";
+        tags.className = "text-xs font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/30";
+        tags.textContent = activeIds.length ? `Tracking: ${activeIds.join(" • ")}` : "Advisory Active";
+      } else {
+        banner.className = "rounded-2xl p-5 border transition-all duration-300 shadow-sm bg-emerald-500/10 border-emerald-500/30";
+        dot.className = "relative w-3.5 h-3.5 mt-1.5 rounded-full bg-emerald-500 shrink-0";
+        title.className = "text-base sm:text-lg font-bold text-emerald-700 dark:text-emerald-300";
+        title.textContent = "All Systems Operational — Microsoft 365 Workloads Healthy";
+        desc.textContent = "No active service interruptions or performance degradations detected across monitored Microsoft 365 services.";
+        tags.className = "text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30";
+        tags.textContent = "SLA Nominal";
+      }
+    }
+
+    function renderServices() {
+      const grid = document.getElementById("services-grid");
+      const query = (document.getElementById("service-search")?.value || "").toLowerCase().trim();
+
+      const filtered = services.filter(svc => {
+        if (currentFilter === "impacted" && svc.status === "healthy") return false;
+        if (currentFilter === "healthy" && svc.status !== "healthy") return false;
+        if (query) {
+          const hay = `${svc.name} ${svc.category} ${svc.incidentId} ${svc.summary}`.toLowerCase();
+          if (!hay.includes(query)) return false;
+        }
+        return true;
+      });
+
+      const statusConfig = {
+        outage: {
+          label: "Outage",
+          cardBorder: "border-rose-500/40 dark:border-rose-500/30",
+          badge: "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30",
+          dot: "bg-rose-500"
+        },
+        degraded: {
+          label: "Degraded",
+          cardBorder: "border-amber-500/40 dark:border-amber-500/30",
+          badge: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+          dot: "bg-amber-500"
+        },
+        healthy: {
+          label: "Healthy",
+          cardBorder: "border-slate-200 dark:border-slate-800",
+          badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+          dot: "bg-emerald-500"
+        }
+      };
+
+      grid.innerHTML = filtered.map(svc => {
+        const cfg = statusConfig[svc.status] || statusConfig.healthy;
+        return `
+          <div class="rounded-xl p-4 bg-white dark:bg-slate-900 border ${cfg.cardBorder} shadow-xs flex flex-col justify-between gap-3 transition hover:shadow-md">
+            <div>
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <h4 class="font-bold text-sm text-slate-900 dark:text-slate-100">${svc.name}</h4>
+                  <span class="text-[11px] text-slate-500 dark:text-slate-400">${svc.category}</span>
+                </div>
+                <button
+                  onclick="cycleServiceStatus('${svc.id}')"
+                  title="Click to simulate status change"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${cfg.badge} cursor-pointer shrink-0"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full ${cfg.dot}"></span>
+                  ${cfg.label}
+                </button>
+              </div>
+              <p class="text-xs text-slate-600 dark:text-slate-300 mt-2.5 leading-relaxed line-clamp-3">
+                ${svc.summary}
+              </p>
+            </div>
+
+            <div class="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+              <div class="flex items-center gap-1.5">
+                <span class="font-mono text-slate-500 dark:text-slate-400">${svc.incidentId}</span>
+                ${svc.autoSynced ? `<span class="px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-600 dark:text-sky-300 font-semibold text-[10px]">AUTO-SYNCED</span>` : ""}
+                ${svc.manualOverride ? `<span class="px-1.5 py-0.2 rounded bg-purple-500/15 text-purple-600 dark:text-purple-300 font-semibold text-[10px]">SIMULATED</span>` : ""}
+              </div>
+              <button
+                onclick="openDetailsModal('${svc.id}')"
+                class="font-semibold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
+              >
+                Details →
+              </button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderTimeline() {
+      const container = document.getElementById("feed-timeline");
+      if (!container) return;
+
+      const combined = [
+        ...adminNotes,
+        ...liveFeedItems,
+        ...BASELINE_FEED
+      ];
+
+      container.innerHTML = combined.map(item => {
+        const badgeHtml = item.isAdminNote
+          ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30">ADMIN NOTE</span>`
+          : item.isLive
+          ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">LIVE</span>`
+          : `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">ARCHIVE</span>`;
+
+        return `
+          <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">${item.author}</span>
+                ${badgeHtml}
+              </div>
+              <span class="text-[11px] text-slate-400 shrink-0">${item.time}</span>
+            </div>
+            ${item.handle ? `<div class="text-[11px] font-medium text-sky-600 dark:text-sky-400">${item.handle}</div>` : ""}
+            <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">${item.text}</p>
+            ${item.link ? `<a href="${item.link}" target="_blank" rel="noopener" class="inline-block text-[11px] text-sky-600 dark:text-sky-400 hover:underline pt-0.5">View source post ↗</a>` : ""}
+          </div>
+        `;
+      }).join("");
+    }
+
+    function addAdminNote(event) {
+      event.preventDefault();
+      const input = document.getElementById("admin-note-input");
+      const text = input.value.trim();
+      if (!text) return;
+
+      adminNotes.unshift({
+        id: `note-${Date.now()}`,
+        author: "IT Operations Admin",
+        handle: "Internal Incident Log",
+        time: formatTimeNow(),
+        text,
+        isAdminNote: true
+      });
+
+      localStorage.setItem("msmonitor_notes_v2", JSON.stringify(adminNotes));
+      input.value = "";
+      renderTimeline();
+      showToast("✓ Internal IT note posted to timeline", "success");
+    }
+
+    function openDetailsModal(serviceId) {
+      const svc = services.find(s => s.id === serviceId);
+      if (!svc) return;
+
+      document.getElementById("modal-incident-id").textContent = svc.incidentId;
+      document.getElementById("modal-service-name").textContent = `${svc.name} (${svc.status.toUpperCase()})`;
+      document.getElementById("modal-impact").textContent = svc.impact;
+      document.getElementById("modal-rootcause").textContent = svc.rootCause;
+      document.getElementById("modal-mitigation").textContent = svc.mitigation;
+
+      const modal = document.getElementById("details-modal");
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+
+    function closeDetailsModal() {
+      const modal = document.getElementById("details-modal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    function openAdvisoryModal() {
+      renderAdvisoryText();
+      const modal = document.getElementById("advisory-modal");
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+    }
+
+    function closeAdvisoryModal() {
+      const modal = document.getElementById("advisory-modal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    function setAdvisoryTemplate(tpl) {
+      currentAdvisoryTemplate = tpl;
+      ["teams", "email", "exec"].forEach(t => {
+        const btn = document.getElementById(`tpl-${t}`);
+        if (!btn) return;
+        btn.className = t === tpl
+          ? "px-3 py-1 rounded-md font-semibold bg-white dark:bg-slate-700 shadow-xs cursor-pointer"
+          : "px-3 py-1 rounded-md font-medium text-slate-600 dark:text-slate-300 cursor-pointer";
+      });
+      renderAdvisoryText();
+    }
+
+    function renderAdvisoryText() {
+      const impacted = services.filter(s => s.status !== "healthy");
+      const includePhishing = document.getElementById("include-phishing-warning")?.checked;
+      const output = document.getElementById("advisory-output");
+      if (!output) return;
+
+      const impactedList = impacted.length
+        ? impacted.map(s => `• ${s.name} (${s.status.toUpperCase()}) — ${s.summary}`).join("\n")
+        : "• All Microsoft 365 services are currently operating normally.";
+
+      const phishingBlock = includePhishing
+        ? `\n\n⚠️ SECURITY REMINDER: During cloud service disruptions, attackers frequently send fake "Microsoft Support" or password-reset emails. Do NOT click suspicious links or share MFA codes—IT will never ask for your credentials.`
+        : "";
+
+      if (currentAdvisoryTemplate === "teams") {
+        output.value = `🚨 **IT SERVICE ADVISORY — MICROSOFT 365 STATUS UPDATE**\n\nMicrosoft is currently experiencing service disruptions affecting the following workloads:\n${impactedList}\n\n**What You Should Do:**\n• No action is required on your laptop or mobile device.\n• Please expect intermittent delays in email delivery, file sync, or automated workflows while Microsoft completes mitigation.\n• Updates will be posted here as services stabilize.${phishingBlock}`;
+      } else if (currentAdvisoryTemplate === "email") {
+        output.value = `Subject: [IT Service Notice] Microsoft 365 Service Degradation & Current Workarounds\n\nDear Team,\n\nPlease be advised that Microsoft is actively resolving an ongoing service issue impacting the following Microsoft 365 applications:\n\n${impactedList}\n\nImpact & Guidance:\n- You may experience slower load times or temporary connection retries.\n- Please avoid repeatedly resending emails or re-triggering automated workflows while queues clear.\n- Our IT Operations team is monitoring @MSFT365Status and the M365 Admin Health portal continuously and will notify you once full service is restored.${phishingBlock}\n\nBest regards,\nIT Service Management Team`;
+      } else {
+        output.value = `EXECUTIVE IT INCIDENT BRIEFING\nTimestamp: ${new Date().toUTCString()}\nImpacted Workloads: ${impacted.length} of ${services.length}\n\nSummary:\n${impactedList}\n\nOperational Posture:\n- Root cause confirmed as vendor-side cloud infrastructure health-check and load-balancing issue (non-security event).\n- Internal tenant configuration remains intact; no local remediation required.\n- Helpdesk alerted to expect elevated ticket volume regarding mail/file latency.${phishingBlock}`;
+      }
+    }
+
+    function copyAdvisoryText() {
+      const output = document.getElementById("advisory-output");
+      if (!output) return;
+      output.select();
+      navigator.clipboard.writeText(output.value);
+
+      const feedback = document.getElementById("copy-feedback");
+      if (feedback) {
+        feedback.style.opacity = "1";
+        setTimeout(() => { feedback.style.opacity = "0"; }, 2200);
+      }
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      html.classList.toggle("dark");
+      localStorage.setItem("msmonitor_theme", html.classList.contains("dark") ? "dark" : "light");
+    }
+
+    function renderAll() {
+      renderGlobalBanner();
+      renderServices();
+      renderTimeline();
+    }
+
+    // =========================================================================
+    // 7. INITIALIZATION
+    // =========================================================================
+    document.addEventListener("DOMContentLoaded", () => {
+      const savedTheme = localStorage.getItem("msmonitor_theme");
+      if (savedTheme === "light") {
+        document.documentElement.classList.remove("dark");
+      }
+      renderAll();
+      startAutoRefreshTimer();
+      syncLiveData(false);
+    });
+  </script>
 </body>
 </html>
