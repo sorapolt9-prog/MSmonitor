@@ -2,8 +2,8 @@ name: Update M365 Status JSON
 
 on:
   schedule:
-    - cron: '*/10 * * * *' # รันอัตโนมัติทุก 10 นาที (ลดการชนกันของ GitHub Pages Deploy)
-  workflow_dispatch:       # เปิดปุ่มให้กด Run workflow เองได้ทันที
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -19,9 +19,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch @MSFT365Status (Posts & Replies) and Cloud RSS
-        env:
-          X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
+      - name: Fetch M365 Status & @MSFT365Status Replies (Rollback to Free RSS Bridges)
         run: |
           node -e '
           const fs = require("fs");
@@ -29,122 +27,82 @@ jobs:
           function cleanHtml(raw) {
             if (!raw) return "";
             return raw
-              .replace(/&lt;/g, "<")
-              .replace(/&gt;/g, ">")
-              .replace(/&amp;/g, "&")
-              .replace(/&quot;/g, "\"")
-              .replace(/&#39;/g, "\x27")
-              .replace(/<br\s*\/?>/gi, " ")
-              .replace(/<\/div>/gi, " ")
-              .replace(/<[^>]*>?/gm, " ")
-              .replace(/&nbsp;/g, " ")
-              .replace(/\s+/g, " ")
-              .trim();
+              .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&")
+              .replace(/<br\s*\/?>/gi, " ").replace(/<\/div>/gi, " ")
+              .replace(/<[^>]*>?/gm, " ").replace(/&nbsp;/g, " ")
+              .replace(/\s+/g, " ").trim();
           }
 
-          async function fetchFromX(bearerToken) {
+          function parseRssItems(xml, sourceLabel) {
             const items = [];
-            if (!bearerToken) {
-              console.warn("⚠️ X_BEARER_TOKEN secret is empty or not configured.");
-              return items;
-            }
+            const itemBlocks = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+            for (const block of itemBlocks.slice(0, 10)) {
+              const rawTitle = block.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/)?.[1] || block.match(/<title>([\s\S]*?)<\/title>/)?.[1] || "";
+              const rawDesc = block.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/)?.[1] || block.match(/<description>([\s\S]*?)<\/description>/)?.[1] || "";
+              const link = (block.match(/<link>([\s\S]*?)<\/link>/)?.[1] || "").trim();
+              const pubDate = (block.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || "").trim();
 
-            const token = bearerToken.trim();
-            const headers = {
-              "Authorization": `Bearer ${token}`,
-              "User-Agent": "MSMonitor-GitHubActions/1.0"
-            };
+              const title = cleanHtml(rawTitle);
+              const desc = cleanHtml(rawDesc);
+              const isReply = title.startsWith("Re:") || title.startsWith("@") || desc.startsWith("@");
 
-            // 1. ค้นหา User ID ของ @MSFT365Status
-            const userRes = await fetch("https://api.x.com/2/users/by/username/MSFT365Status", { headers });
-            const userData = await userRes.json();
-
-            if (!userRes.ok || !userData.data?.id) {
-              console.error("❌ X User Lookup Failed:", userRes.status, JSON.stringify(userData));
-              return items;
-            }
-
-            const userId = userData.data.id;
-            console.log(`✅ Resolved @MSFT365Status User ID: ${userId}`);
-
-            // 2. ดึงโพสต์ล่าสุดและ Replies (ไม่ระบุ exclude=replies เพื่อให้ได้ทั้งโพสต์หลักและ Reply)
-            const tweetsUrl = `https://api.x.com/2/users/${userId}/tweets?max_results=15&exclude=retweets&tweet.fields=created_at,in_reply_to_user_id,conversation_id`;
-            const tweetsRes = await fetch(tweetsUrl, { headers });
-            const tweetsData = await tweetsRes.json();
-
-            if (!tweetsRes.ok) {
-              console.error("❌ X Tweets Fetch Failed:", tweetsRes.status, JSON.stringify(tweetsData));
-              return items;
-            }
-
-            if (Array.isArray(tweetsData.data)) {
-              for (const tweet of tweetsData.data) {
-                const isReply = Boolean(tweet.in_reply_to_user_id) || tweet.text.trim().startsWith("@");
-                items.push({
-                  title: isReply ? "@MSFT365Status (Reply)" : "@MSFT365Status",
-                  description: tweet.text.trim(),
-                  pubDate: tweet.created_at,
-                  link: `https://x.com/MSFT365Status/status/${tweet.id}`,
-                  source: isReply ? "@MSFT365Status (Reply)" : "@MSFT365Status"
-                });
-              }
-              console.log(`✅ Fetched ${items.length} items (including replies) from X API.`);
-            }
-            return items;
-          }
-
-          async function fetchFromMicrosoftRss() {
-            const items = [];
-            try {
-              const resMac = await fetch("https://status.cloud.microsoft/api/feed/mac");
-              if (!resMac.ok) {
-                console.warn("⚠️ MAC RSS returned HTTP", resMac.status);
-                return items;
-              }
-              const xml = await resMac.text();
-              const blocks = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
-              for (const b of blocks.slice(0, 5)) {
-                const rawTitle = b.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/)?.[1] || b.match(/<title>([\s\S]*?)<\/title>/)?.[1] || "";
-                const rawDesc = b.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/)?.[1] || b.match(/<description>([\s\S]*?)<\/description>/)?.[1] || "";
-                const pubDate = (b.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] || "").trim();
-
-                items.push({
-                  title: cleanHtml(rawTitle) || "Microsoft 365 Status",
-                  description: cleanHtml(rawDesc),
-                  pubDate,
-                  link: "https://status.cloud.microsoft/",
-                  source: "status.cloud.microsoft"
-                });
-              }
-              console.log(`✅ Fetched ${items.length} items from status.cloud.microsoft RSS.`);
-            } catch (e) {
-              console.error("❌ MAC RSS Error:", e.message);
+              items.push({
+                title: isReply ? "@MSFT365Status (Reply)" : (title || sourceLabel),
+                description: desc || title,
+                pubDate,
+                link: link || "https://x.com/MSFT365Status/with_replies",
+                source: isReply ? "@MSFT365Status (Reply)" : sourceLabel
+              });
             }
             return items;
           }
 
           async function main() {
-            const [xItems, macItems] = await Promise.all([
-              fetchFromX(process.env.X_BEARER_TOKEN),
-              fetchFromMicrosoftRss()
-            ]);
+            const allItems = [];
 
-            const allItems = [...xItems, ...macItems];
+            // 1. ดึงจาก Microsoft 365 Cloud Status Official RSS
+            try {
+              const resMac = await fetch("https://status.cloud.microsoft/api/feed/mac");
+              if (resMac.ok) {
+                const xmlMac = await resMac.text();
+                allItems.push(...parseRssItems(xmlMac, "status.cloud.microsoft"));
+              }
+            } catch (e) { console.error("MAC RSS failed:", e.message); }
+
+            // 2. ดึงจาก @MSFT365Status (รวม Replies) ผ่าน RSS Bridges ฟรี
+            const xBridges = [
+              "https://rsshub.app/twitter/user/MSFT365Status/includeRts=0&excludeReplies=0",
+              "https://nitter.net/MSFT365Status/with_replies/rss",
+              "https://nitter.privacydev.net/MSFT365Status/with_replies/rss"
+            ];
+
+            for (const url of xBridges) {
+              try {
+                const resX = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 MSMonitor-Bot" } });
+                if (resX.ok) {
+                  const xmlX = await resX.text();
+                  const parsedX = parseRssItems(xmlX, "@MSFT365Status");
+                  if (parsedX.length > 0) {
+                    allItems.push(...parsedX);
+                    break;
+                  }
+                }
+              } catch (e) { console.error("X Bridge failed:", url, e.message); }
+            }
+
+            // เรียงลำดับจากใหม่ไปเก่า
             allItems.sort((a, b) => new Date(b.pubDate || 0) - new Date(a.pubDate || 0));
 
             const payload = {
               updatedAt: new Date().toISOString(),
-              source: xItems.length > 0
-                ? "Authenticated X API (@MSFT365Status + Replies) & Microsoft Cloud Status"
-                : "Microsoft 365 Cloud Status Feed",
+              source: "Microsoft 365 Cloud Status + @MSFT365Status (RSS Bridges)",
               count: allItems.length,
-              items: allItems.slice(0, 20)
+              items: allItems.slice(0, 15)
             };
 
             fs.writeFileSync("status.json", JSON.stringify(payload, null, 2));
-            console.log(`💾 Wrote status.json successfully (${payload.count} total items).`);
+            console.log("Saved status.json with", payload.count, "items.");
           }
-
           main();
           '
 
@@ -153,5 +111,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add status.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "chore: update status.json with X API & Cloud Status"
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: rollback to free RSS bridge sync"
           git push
