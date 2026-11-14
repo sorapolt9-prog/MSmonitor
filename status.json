@@ -1,12 +1,12 @@
 {
-  "updatedAt": "2026-11-14T07:52:15.488Z",
+  "updatedAt": "2026-11-14T08:04:06.812Z",
   "source": "Microsoft 365 Cloud Status + @MSFT365Status (RSS Bridges)",
   "count": 1,
   "items": [
     {
       "title": "Microsoft Admin Center",
       "description": "This site is updated when service issues are preventing tenant administrators from accessing Service health in the Microsoft 365 admin center. Alternatively, customers can reference https://www.twitter.com/MSFT365Status for additional insights into widespread, active incidents.",
-      "pubDate": "Sat, 14 Nov 2026 07:52:00 Z",
+      "pubDate": "Sat, 14 Nov 2026 08:04:00 Z",
       "link": "https://status.cloud.microsoft/",
       "source": "status.cloud.microsoft"
     }
